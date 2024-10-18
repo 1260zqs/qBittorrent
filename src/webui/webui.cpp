@@ -48,6 +48,77 @@ WebUI::WebUI(IApplication *app, const QByteArray &tempPasswordHash)
     connect(Preferences::instance(), &Preferences::changed, this, &WebUI::configure);
 }
 
+void WebUI::configurePrivate()
+{
+    qDebug("start private http server...");
+    
+    const Preferences *pref = Preferences::instance();
+    m_isPrivateEnabled = pref->isWebUIPrivateEnabled();
+
+    const QString serverAddressString = pref->getWebUIPrivateAddress();
+    if (((serverAddressString == u"*") || serverAddressString.isEmpty()))
+    {
+        m_isPrivateEnabled = false;
+        m_webapp->m_privatePort = 0;
+        m_webapp->m_isPrivateEnabled = m_isPrivateEnabled;
+        return;
+    }
+    const auto serverAddress = QHostAddress(serverAddressString);
+    const quint16 port = pref->getWebUIPrivatePort();
+
+    m_webapp->m_privatePort = port;
+    m_webapp->m_isPrivateEnabled = m_isPrivateEnabled;
+
+    if (m_isPrivateEnabled)
+    {
+        if (!m_httpServerPrivate)
+        {
+            m_httpServerPrivate = new Http::Server(m_webapp, this);
+        }
+        else
+        {
+            if ((m_httpServerPrivate->serverAddress() != serverAddress) || (m_httpServerPrivate->serverPort() != port))
+                m_httpServerPrivate->close();
+        }
+
+        if (pref->isWebUIHttpsEnabled())
+        {
+            const auto readData = [](const Path &path) -> QByteArray
+            {
+                const auto readResult = Utils::IO::readFile(path, Utils::Net::MAX_SSL_FILE_SIZE);
+                return readResult.value_or(QByteArray());
+            };
+            const QByteArray cert = readData(pref->getWebUIHttpsCertificatePath());
+            const QByteArray key = readData(pref->getWebUIHttpsKeyPath());
+
+            const bool success = m_httpServerPrivate->setupHttps(cert, key);
+            if (success)
+                LogMsg(tr("Private WebUI: HTTPS setup successful"));
+            else
+                LogMsg(tr("Private WebUI: HTTPS setup failed, fallback to HTTP"), Log::CRITICAL);
+        }
+        else
+        {
+            m_httpServerPrivate->disableHttps();
+        }
+
+        if (!m_httpServerPrivate->isListening())
+        {
+            const bool success = m_httpServerPrivate->listen(serverAddress, port);
+            if (success)
+            {
+                LogMsg(tr("Private WebUI: Now listening on IP: %1, port: %2").arg(serverAddressString).arg(port));
+            }
+            else
+            {
+                LogMsg(tr("Private Unable to bind to IP: %1, port: %2. Reason: %3")
+                        .arg(serverAddressString).arg(port).arg(m_httpServer->errorString()));
+                
+            }
+        }
+    }   
+}
+
 void WebUI::configure()
 {
     m_isErrored = false; // clear previous error state
@@ -152,6 +223,8 @@ void WebUI::configure()
         {
             delete m_dnsUpdater;
         }
+
+        configurePrivate();
     }
     else
     {
@@ -160,6 +233,7 @@ void WebUI::configure()
         delete m_httpServer;
         delete m_webapp;
         delete m_dnsUpdater;
+        delete m_httpServerPrivate;
     }
 }
 

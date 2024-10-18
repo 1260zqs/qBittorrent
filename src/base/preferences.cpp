@@ -753,6 +753,27 @@ void Preferences::setWebUIPort(const quint16 port)
     setValue(u"Preferences/WebUI/Port"_s, static_cast<int>(port));
 }
 
+bool Preferences::isWebUIPrivateEnabled() const
+{
+#ifdef DISABLE_GUI
+    const bool defaultValue = true;
+#else
+    const bool defaultValue = false;
+#endif
+    return value(u"Preferences/WebUIPrivate/Enabled"_s, defaultValue);
+}
+
+QString Preferences::getWebUIPrivateAddress() const
+{
+    return value<QString>(u"Preferences/WebUIPrivate/Address"_s, u"*"_s).trimmed();
+}
+
+quint16 Preferences::getWebUIPrivatePort() const
+{
+    return value<quint16>(u"Preferences/WebUIPrivate/Port"_s, 8081);
+}
+
+
 bool Preferences::useUPnPForWebUIPort() const
 {
     return value(u"Preferences/WebUI/UseUPnP"_s, false);

@@ -181,7 +181,9 @@ public:
     void setWebUIPort(quint16 port);
     bool useUPnPForWebUIPort() const;
     void setUPnPForWebUIPort(bool enabled);
-
+    bool isWebUIPrivateEnabled() const;
+    QString getWebUIPrivateAddress() const;
+    quint16 getWebUIPrivatePort() const;
     // Authentication
     bool isWebUILocalAuthEnabled() const;
     void setWebUILocalAuthEnabled(bool enabled);

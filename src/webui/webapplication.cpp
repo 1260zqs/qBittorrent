@@ -699,6 +699,13 @@ QString WebApplication::generateSid() const
 
 bool WebApplication::isAuthNeeded()
 {
+    if (m_isPrivateEnabled)
+    {
+        if (m_env.localPort == m_privatePort)
+        {
+            return true;
+        }
+    }
     if (!m_isLocalAuthEnabled && m_clientAddress.isLoopback())
         return false;
     if (m_isAuthSubnetWhitelistEnabled && Utils::Net::isIPInSubnets(m_clientAddress, m_authSubnetWhitelist))

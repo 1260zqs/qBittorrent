@@ -105,7 +105,9 @@ public:
 
     void setUsername(const QString &username);
     void setPasswordHash(const QByteArray &passwordHash);
-
+    
+    quint16 m_privatePort = 0;
+    bool m_isPrivateEnabled = false;
 private:
     QString clientId() const override;
     WebSession *session() override;

@@ -78,4 +78,9 @@ private:
     QPointer<WebApplication> m_webapp;
 
     QByteArray m_tempPasswordHash;
+    
+    //private server
+    void configurePrivate();
+    bool m_isPrivateEnabled = false;
+    QPointer<Http::Server> m_httpServerPrivate;
 };
