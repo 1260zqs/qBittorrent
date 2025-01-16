@@ -61,6 +61,9 @@ public:
     QHostAddress hostAddress() const;
     quint16 port() const;
 
+    bool isPrivateEnabled() const;
+    QHostAddress privateHostAddress() const;
+    quint16 privatePort() const;
 signals:
     void error(const QString &message);
 

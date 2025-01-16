@@ -947,6 +947,15 @@ int Application::exec()
                     , QString::number(m_webui->port()));
             printf("%s\n", qUtf8Printable(tr("To control qBittorrent, access the WebUI at: %1").arg(url)));
 
+            if (m_webui->isPrivateEnabled())
+            {
+                const QHostAddress privateAddress = m_webui->privateHostAddress();
+                const QString url = u"%1://%2:%3"_s.arg((m_webui->isHttps() ? u"https"_s : u"http"_s)
+                    , (address.isEqual(QHostAddress::Any, QHostAddress::ConvertUnspecifiedAddress) ? u"localhost"_s : privateAddress.toString())
+                    , QString::number(m_webui->privatePort()));
+                printf("%s\n", qUtf8Printable(tr("To control PRIVATE qBittorrent, access the WebUI at: %1").arg(url)));
+            }
+
             if (!tempPassword.isEmpty())
             {
                 const QString warning = tr("The WebUI administrator username is: %1").arg(pref->getWebUIUsername()) + u'\n'

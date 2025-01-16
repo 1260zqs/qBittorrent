@@ -48,6 +48,23 @@ WebUI::WebUI(IApplication *app, const QByteArray &tempPasswordHash)
     connect(Preferences::instance(), &Preferences::changed, this, &WebUI::configure);
 }
 
+QHostAddress WebUI::privateHostAddress() const
+{
+    if (!m_httpServerPrivate) return {};
+    return m_httpServerPrivate->serverAddress();
+}
+
+quint16 WebUI::privatePort() const
+{
+    if (!m_httpServerPrivate) return 0;
+    return m_httpServerPrivate->serverPort();
+}
+
+bool WebUI::isPrivateEnabled() const
+{
+    return m_isPrivateEnabled;
+}
+
 void WebUI::configurePrivate()
 {
     qDebug("start private http server...");

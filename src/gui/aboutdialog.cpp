@@ -63,6 +63,7 @@ AboutDialog::AboutDialog(QWidget *parent)
         u"<tr><td>%3</td><td><a href=\"https://www.qbittorrent.org\">https://www.qbittorrent.org</a></td></tr>"
         u"<tr><td>%4</td><td><a href=\"https://forum.qbittorrent.org\">https://forum.qbittorrent.org</a></td></tr>"
         u"<tr><td>%5</td><td><a href=\"https://bugs.qbittorrent.org\">https://bugs.qbittorrent.org</a></td></tr>"
+        u"<tr><td>%6</td><td><a href=\"https://github.com/1260zqs/qBittorrent\">https://github.com/1260zqs/qBittorrent</a></td></tr>"
         u"</table>"
         u"</p>"_s
         .arg(tr("An advanced BitTorrent client programmed in C++, based on Qt toolkit and libtorrent-rasterbar.")
@@ -70,7 +71,8 @@ AboutDialog::AboutDialog(QWidget *parent)
             , tr("Copyright %1 2006-2024 The qBittorrent project").arg(C_COPYRIGHT)
             , tr("Home Page:")
             , tr("Forum:")
-            , tr("Bug Tracker:"));
+            , tr("Bug Tracker:")
+            , QString::fromUtf8("Custom Build:"));
     m_ui->labelAbout->setText(aboutText);
 
     m_ui->labelMascot->setPixmap(Utils::Gui::scaledPixmap(Path(u":/icons/mascot.png"_s)));

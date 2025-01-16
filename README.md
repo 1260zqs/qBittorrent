@@ -42,3 +42,27 @@ Official IRC channel:
 
 ------------------------------------------
 sledgehammer999 \<sledgehammer999@qbittorrent.org\>
+
+------------------------------------------
+### About this fork version
+I added a second HTTP server on the web UI that enforces authentication. <br>
+It ignores all the 'Bypass' and 'Whitelist' settings. <br>
+In my project, I couldn't set up a reverse proxy properly, so this solution came out. <br>
+To configure the private HTTP server, open the qBittorrent.conf file in the ~/.config/qBittorrent folder <br>
+and add the additional settings to the Preferences section.
+```
+[Preferences]
+WebUIPrivate\Address=127.0.0.1
+WebUIPrivate\Enabled=true
+WebUIPrivate\Port=8081
+```
+### Build With GUI:
+```
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -- -j 16
+```
+### Build Without GUI (aka qbittorrent-nox)
+```
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DGUI=OFF
+    cmake --build build -- -j 16
+```
