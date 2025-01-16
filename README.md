@@ -58,11 +58,11 @@ WebUIPrivate\Port=8081
 ```
 ### Build With GUI:
 ```
-    cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build -- -j 16
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -- -j 16
 ```
 ### Build Without GUI (aka qbittorrent-nox)
 ```
-    cmake -B build -DCMAKE_BUILD_TYPE=Release -DGUI=OFF
-    cmake --build build -- -j 16
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DGUI=OFF
+cmake --build build -- -j 16
 ```
