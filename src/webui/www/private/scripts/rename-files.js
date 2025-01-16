@@ -10,9 +10,9 @@ window.qBittorrent.MultiRename ??= (() => {
     };
 
     const AppliesTo = {
-        "FilenameExtension": "FilenameExtension",
-        "Filename": "Filename",
-        "Extension": "Extension"
+        FilenameExtension: "FilenameExtension",
+        Filename: "Filename",
+        Extension: "Extension"
     };
 
     const RenameFiles = new Class({
@@ -44,10 +44,10 @@ window.qBittorrent.MultiRename ??= (() => {
         replaceAll: false,
         fileEnumerationStart: 0,
 
-        onChanged: function(rows) {},
-        onInvalidRegex: function(err) {},
-        onRenamed: function(rows) {},
-        onRenameError: function(err) {},
+        onChanged: (rows) => {},
+        onInvalidRegex: (err) => {},
+        onRenamed: (rows) => {},
+        onRenameError: (response) => {},
 
         _inner_update: function() {
             const findMatches = (regex, str) => {
@@ -240,21 +240,19 @@ window.qBittorrent.MultiRename ??= (() => {
                 const newPath = parentPath
                     ? parentPath + window.qBittorrent.Filesystem.PathSeparator + newName
                     : newName;
-                const renameRequest = new Request({
-                    url: isFolder ? "api/v2/torrents/renameFolder" : "api/v2/torrents/renameFile",
-                    method: "post",
-                    data: {
-                        hash: this.hash,
-                        oldPath: oldPath,
-                        newPath: newPath
-                    }
-                });
                 try {
-                    await renameRequest.send();
+                    await fetch((isFolder ? "api/v2/torrents/renameFolder" : "api/v2/torrents/renameFile"), {
+                        method: "POST",
+                        body: new URLSearchParams({
+                            hash: this.hash,
+                            oldPath: oldPath,
+                            newPath: newPath
+                        })
+                    });
                     replaced.push(match);
                 }
-                catch (err) {
-                    this.onRenameError(err, match);
+                catch (response) {
+                    this.onRenameError(response, match);
                 }
             }.bind(this);
 

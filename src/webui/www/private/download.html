@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="${LANG}">
+<html lang="${LANG}" class="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/Window.css?v=${CACHEID}" type="text/css">
     <script src="scripts/lib/MooTools-Core-1.6.0-compat-compressed.js"></script>
     <script src="scripts/lib/MooTools-More-1.6.0-compat-compressed.js"></script>
+    <script src="scripts/localpreferences.js?v=${CACHEID}"></script>
+    <script src="scripts/color-scheme.js?v=${CACHEID}"></script>
     <script src="scripts/download.js?v=${CACHEID}"></script>
     <script src="scripts/misc.js?locale=${LANG}&v=${CACHEID}"></script>
     <script src="scripts/pathAutofill.js?v=${CACHEID}"></script>
@@ -161,13 +163,10 @@
     <script>
         "use strict";
 
-        const encodedUrls = new URI().getData("urls");
-        if (encodedUrls) {
-            const urls = encodedUrls.split("|").map((url) => {
-                return decodeURIComponent(url);
-            });
-
-            if (urls.length)
+        const encodedUrls = new URLSearchParams(window.location.search).get("urls");
+        if (encodedUrls !== null) {
+            const urls = encodedUrls.split("|").map(decodeURIComponent);
+            if (urls.length > 0)
                 $("urls").value = urls.join("\n");
         }
 
@@ -176,8 +175,8 @@
         $("downloadForm").addEventListener("submit", () => {
             $("startTorrentHidden").value = $("startTorrent").checked ? "false" : "true";
 
-            $("dlLimitHidden").value = $("dlLimitText").value.toInt() * 1024;
-            $("upLimitHidden").value = $("upLimitText").value.toInt() * 1024;
+            $("dlLimitHidden").value = Number($("dlLimitText").value) * 1024;
+            $("upLimitHidden").value = Number($("upLimitText").value) * 1024;
 
             $("download_spinner").style.display = "block";
             submitted = true;
@@ -185,7 +184,7 @@
 
         $("download_frame").addEventListener("load", () => {
             if (submitted)
-                window.parent.qBittorrent.Client.closeWindows();
+                window.parent.qBittorrent.Client.closeFrameWindow(window);
         });
 
         window.qBittorrent.pathAutofill.attachPathAutofill();

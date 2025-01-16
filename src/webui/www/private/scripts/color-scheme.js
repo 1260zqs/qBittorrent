@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2024  sledgehammer999 <hammered999@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,51 +26,31 @@
  * exception statement from your version.
  */
 
-#pragma once
+"use strict";
 
-#include <QDateTime>
-#include <QList>
-#include <QObject>
-#include <QSet>
-#include <QString>
-#include <QVariantHash>
-
-class QXmlStreamReader;
-
-namespace RSS::Private
-{
-    struct ParsingResult
-    {
-        QString error;
-        QString lastBuildDate;
-        QString title;
-        QList<QVariantHash> articles;
+window.qBittorrent ??= {};
+window.qBittorrent.ColorScheme ??= (() => {
+    const exports = () => {
+        return {
+            update,
+        };
     };
 
-    class Parser final : public QObject
-    {
-        Q_OBJECT
-        Q_DISABLE_COPY_MOVE(Parser)
+    const LocalPreferences = new window.qBittorrent.LocalPreferences.LocalPreferences();
+    const colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-    public:
-        explicit Parser(const QString &lastBuildDate);
-        void parse(const QByteArray &feedData);
-
-    signals:
-        void finished(const RSS::Private::ParsingResult &result);
-
-    private:
-        void parseRssArticle(QXmlStreamReader &xml);
-        void parseRSSChannel(QXmlStreamReader &xml);
-        void parseAtomArticle(QXmlStreamReader &xml);
-        void parseAtomChannel(QXmlStreamReader &xml);
-        void addArticle(QVariantHash article);
-
-        QDateTime m_fallbackDate;
-        QString m_baseUrl;
-        ParsingResult m_result;
-        QSet<QString> m_articleIDs;
+    const update = () => {
+        const root = document.documentElement;
+        const colorScheme = LocalPreferences.get("color_scheme");
+        const validScheme = (colorScheme === "light") || (colorScheme === "dark");
+        const isDark = colorSchemeQuery.matches;
+        root.classList.toggle("dark", ((!validScheme && isDark) || (colorScheme === "dark")));
     };
-}
 
-Q_DECLARE_METATYPE(RSS::Private::ParsingResult)
+    colorSchemeQuery.addEventListener("change", update);
+
+    return exports();
+})();
+Object.freeze(window.qBittorrent.ColorScheme);
+
+window.qBittorrent.ColorScheme.update();

@@ -2,13 +2,18 @@
     #rssView {
         padding: 20px 20px 0 20px;
         height: calc(100% - 20px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #rssTopBar {
+        flex-shrink: 0;
     }
 
     #rssContentView {
-        display: table;
         width: 100%;
-        height: calc(100% - 30px);
-        vertical-align: top;
+        flex-grow: 1;
+        overflow: auto;
     }
 
     #rssFeedFixedHeaderDiv .dynamicTableHeader,
@@ -45,6 +50,7 @@
 
     #rightRssColumn {
         overflow: auto;
+        height: 100%;
     }
 
     #rssFeedTableDiv,
@@ -53,17 +59,21 @@
     }
 
     #rssTorrentDetailsName {
+        flex-shrink: 0;
         background-color: var(--color-background-blue);
         padding: 0;
         color: var(--color-text-white);
     }
 
     #rssTorrentDetailsDate {
+        flex-shrink: 1;
         background-color: var(--color-background-default);
     }
 
     #rssDetailsView {
-        height: calc(100vh - 135px);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
         overflow: auto;
     }
 
@@ -85,6 +95,7 @@
     }
 
     #rssDescription {
+        flex-grow: 2;
         width: 100%;
         border: none;
     }
@@ -204,22 +215,10 @@
             const pref = window.parent.qBittorrent.Cache.preferences.get();
 
             if (!pref.rss_processing_enabled)
-                $("rssFetchingDisabled").removeClass("invisible");
-
-            // recalculate heights
-            const nonPageHeight = $("rssTopBar").getBoundingClientRect().height
-                + $("desktopHeader").getBoundingClientRect().height
-                + $("desktopFooterWrapper").getBoundingClientRect().height + 20;
-            $("rssDetailsView").style.height = "calc(100vh - " + nonPageHeight + "px)";
-
-            const nonTableHeight = nonPageHeight + $("rssFeedFixedHeaderDiv").getBoundingClientRect().height;
-            $("rssFeedTableDiv").style.height = "calc(100vh - " + nonTableHeight + "px)";
-            $("rssArticleTableDiv").style.height = "calc(100vh - " + nonTableHeight + "px)";
-
-            $("rssContentView").style.height = "calc(100% - " + $("rssTopBar").getBoundingClientRect().height + "px)";
+                $("rssFetchingDisabled").classList.remove("invisible");
 
             const rssFeedContextMenu = new window.qBittorrent.ContextMenu.RssFeedContextMenu({
-                targets: ".rssFeedContextMenuTarget",
+                targets: "#rssFeedTableDiv tr",
                 menu: "rssFeedMenu",
                 actions: {
                     update: (el) => {
@@ -289,7 +288,7 @@
             rssFeedTable.setup("rssFeedTableDiv", "rssFeedFixedHeaderDiv", rssFeedContextMenu);
 
             const rssArticleContextMenu = new window.qBittorrent.ContextMenu.RssArticleContextMenu({
-                targets: ".rssArticleElement",
+                targets: "#rssArticleTableDiv tr",
                 menu: "rssArticleMenu",
                 actions: {
                     Download: (el) => {
@@ -451,23 +450,24 @@
                 const torrentDescription = document.createRange().createContextualFragment('<iframe sandbox id="rssDescription"></iframe>');
                 $("rssDetailsView").append(torrentDescription);
                 document.getElementById("rssDescription").srcdoc = '<html><head><link rel="stylesheet" type="text/css" href="css/style.css"></head><body>' + article.description + "</body></html>";
-
-                // calculate height to fill screen
-                document.getElementById("rssDescription").style.height =
-                    "calc(100% - " + document.getElementById("rssTorrentDetailsName").offsetHeight + "px - "
-                    + document.getElementById("rssTorrentDetailsDate").offsetHeight + "px - 5px)";
             }
         };
 
         const updateRssFeedList = () => {
-            new Request.JSON({
-                url: "api/v2/rss/items",
-                method: "get",
-                noCache: true,
-                data: {
-                    withData: true
-                },
-                onSuccess: (response) => {
+            const url = new URL("api/v2/rss/items", window.location);
+            url.search = new URLSearchParams({
+                withData: true
+            });
+            fetch(url, {
+                    method: "GET",
+                    cache: "no-store"
+                })
+                .then(async (response) => {
+                    if (!response.ok)
+                        return;
+
+                    const responseJSON = await response.json();
+
                     // flatten folder structure
                     const flattenedResp = [];
                     const recFlatten = (current, name = "", depth = 0, fullName = "") => {
@@ -494,7 +494,7 @@
                             }
                         }
                     };
-                    recFlatten(response);
+                    recFlatten(responseJSON);
 
                     // check if rows matches flattened response
                     const rssFeedRows = [...rssFeedTable.getRowValues()];
@@ -693,8 +693,7 @@
                         rssFeedTable.updateTable(false);
                         rssFeedTable.updateIcons();
                     }
-                }
-            }).send();
+                });
         };
 
         const refreshFeed = (feedUid) => {
@@ -705,17 +704,19 @@
             }
             rssFeedTable.updateIcons();
 
-            new Request({
-                url: "api/v2/rss/refreshItem",
-                method: "post",
-                data: {
-                    itemPath: pathByFeedId.get(feedUid)
-                },
-                onFailure: (response) => {
-                    if (response.status === 409)
-                        alert(response.responseText);
-                }
-            }).send();
+            fetch("api/v2/rss/refreshItem", {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        itemPath: pathByFeedId.get(feedUid)
+                    })
+                })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        if (response.status === 409)
+                            alert(await response.text());
+                        return;
+                    }
+                });
         };
 
         const refreshAllFeeds = () => {
@@ -742,12 +743,17 @@
         };
 
         const editUrl = (path, url) => {
+            const contentURL = new URL("editfeedurl.html", window.location);
+            contentURL.search = new URLSearchParams({
+                path: path,
+                url: url
+            });
             new MochaUI.Window({
                 id: "editFeedURL",
                 icon: "images/qbittorrent-tray.svg",
                 title: "QBT_TR(Please type a RSS feed URL)QBT_TR[CONTEXT=RSSWidget]",
                 loadMethod: "iframe",
-                contentURL: new URI("editfeedurl.html").setData("path", path).setData("url", url).toString(),
+                contentURL: contentURL.toString(),
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
@@ -808,17 +814,19 @@
             rssFeedTable.updateTable(true);
 
             // send request
-            new Request({
-                url: "api/v2/rss/markAsRead",
-                method: "post",
-                data: {
-                    itemPath: path
-                },
-                onFailure: (response) => {
-                    if (response.status === 409)
-                        alert(response.responseText);
-                }
-            }).send();
+            fetch("api/v2/rss/markAsRead", {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        itemPath: path
+                    })
+                })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        if (response.status === 409)
+                            alert(await response.text());
+                        return;
+                    }
+                });
         };
 
         const markArticleAsRead = (path, id) => {
@@ -849,18 +857,20 @@
 
                 rssFeedTable.updateTable(true);
 
-                new Request({
-                    url: "api/v2/rss/markAsRead",
-                    method: "post",
-                    data: {
-                        itemPath: path,
-                        articleId: id
-                    },
-                    onFailure: (response) => {
-                        if (response.status === 409)
-                            alert(response.responseText);
-                    }
-                }).send();
+                fetch("api/v2/rss/markAsRead", {
+                        method: "POST",
+                        body: new URLSearchParams({
+                            itemPath: path,
+                            articleId: id
+                        })
+                    })
+                    .then(async (response) => {
+                        if (!response.ok) {
+                            if (response.status === 409)
+                                alert(await response.text());
+                            return;
+                        }
+                    });
             }
         };
 
@@ -889,8 +899,8 @@
                     saveWindowSize(id);
                 }),
                 resizeLimit: {
-                    "x": [800, 2500],
-                    "y": [500, 2000]
+                    x: [800, 2500],
+                    y: [500, 2000]
                 }
             });
         };

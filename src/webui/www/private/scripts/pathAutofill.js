@@ -40,7 +40,7 @@ window.qBittorrent.pathAutofill ??= (() => {
         };
     };
 
-    function showInputSuggestions(inputElement, names) {
+    const showInputSuggestions = (inputElement, names) => {
         const datalist = document.createElement("datalist");
         datalist.id = inputElement.id + "Suggestions";
         for (const name of names) {
@@ -57,18 +57,21 @@ window.qBittorrent.pathAutofill ??= (() => {
             inputElement.appendChild(datalist);
             inputElement.setAttribute("list", datalist.id);
         }
-    }
+    };
 
-    function showPathSuggestions(element, mode) {
+    const showPathSuggestions = (element, mode) => {
         const partialPath = element.value;
         if (partialPath === "")
             return;
 
-        fetch(`api/v2/app/getDirectoryContent?dirPath=${partialPath}&mode=${mode}`)
+        fetch(`api/v2/app/getDirectoryContent?dirPath=${partialPath}&mode=${mode}`, {
+                method: "GET",
+                cache: "no-store"
+            })
             .then(response => response.json())
             .then(filesList => { showInputSuggestions(element, filesList); })
             .catch(error => {});
-    }
+    };
 
     function attachPathAutofill() {
         const directoryInputs = document.querySelectorAll(".pathDirectory:not(.pathAutoFillInitialized)");

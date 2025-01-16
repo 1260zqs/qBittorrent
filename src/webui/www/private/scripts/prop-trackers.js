@@ -32,7 +32,8 @@ window.qBittorrent ??= {};
 window.qBittorrent.PropTrackers ??= (() => {
     const exports = () => {
         return {
-            updateData: updateData
+            updateData: updateData,
+            clear: clear
         };
     };
 
@@ -41,9 +42,9 @@ window.qBittorrent.PropTrackers ??= (() => {
     const torrentTrackersTable = new window.qBittorrent.DynamicTable.TorrentTrackersTable();
     let loadTrackersDataTimer = -1;
 
-    const loadTrackersData = function() {
-        if ($("propTrackers").hasClass("invisible")
-            || $("propertiesPanel_collapseToggle").hasClass("panel-expand")) {
+    const loadTrackersData = () => {
+        if ($("propTrackers").classList.contains("invisible")
+            || $("propertiesPanel_collapseToggle").classList.contains("panel-expand")) {
             // Tab changed, don't do anything
             return;
         }
@@ -51,26 +52,29 @@ window.qBittorrent.PropTrackers ??= (() => {
         if (new_hash === "") {
             torrentTrackersTable.clear();
             clearTimeout(loadTrackersDataTimer);
-            loadTrackersDataTimer = loadTrackersData.delay(10000);
             return;
         }
         if (new_hash !== current_hash) {
             torrentTrackersTable.clear();
             current_hash = new_hash;
         }
-        const url = new URI("api/v2/torrents/trackers?hash=" + current_hash);
-        new Request.JSON({
-            url: url,
-            method: "get",
-            noCache: true,
-            onComplete: function() {
-                clearTimeout(loadTrackersDataTimer);
-                loadTrackersDataTimer = loadTrackersData.delay(10000);
-            },
-            onSuccess: function(trackers) {
+
+        const url = new URL("api/v2/torrents/trackers", window.location);
+        url.search = new URLSearchParams({
+            hash: current_hash
+        });
+        fetch(url, {
+                method: "GET",
+                cache: "no-store"
+            })
+            .then(async (response) => {
+                if (!response.ok)
+                    return;
+
                 const selectedTrackers = torrentTrackersTable.selectedRowsIds();
                 torrentTrackersTable.clear();
 
+                const trackers = await response.json();
                 if (trackers) {
                     trackers.each((tracker) => {
                         let status;
@@ -101,7 +105,8 @@ window.qBittorrent.PropTrackers ??= (() => {
                             seeds: (tracker.num_seeds >= 0) ? tracker.num_seeds : "QBT_TR(N/A)QBT_TR[CONTEXT=TrackerListWidget]",
                             leeches: (tracker.num_leeches >= 0) ? tracker.num_leeches : "QBT_TR(N/A)QBT_TR[CONTEXT=TrackerListWidget]",
                             downloaded: (tracker.num_downloaded >= 0) ? tracker.num_downloaded : "QBT_TR(N/A)QBT_TR[CONTEXT=TrackerListWidget]",
-                            message: tracker.msg
+                            message: tracker.msg,
+                            _sortable: !tracker.url.startsWith("** [")
                         };
 
                         torrentTrackersTable.updateRowData(row);
@@ -112,11 +117,14 @@ window.qBittorrent.PropTrackers ??= (() => {
                     if (selectedTrackers.length > 0)
                         torrentTrackersTable.reselectRows(selectedTrackers);
                 }
-            }
-        }).send();
+            })
+            .finally(() => {
+                clearTimeout(loadTrackersDataTimer);
+                loadTrackersDataTimer = loadTrackersData.delay(10000);
+            });
     };
 
-    const updateData = function() {
+    const updateData = () => {
         clearTimeout(loadTrackersDataTimer);
         loadTrackersDataTimer = -1;
         loadTrackersData();
@@ -126,15 +134,15 @@ window.qBittorrent.PropTrackers ??= (() => {
         targets: "#torrentTrackersTableDiv",
         menu: "torrentTrackersMenu",
         actions: {
-            AddTracker: function(element, ref) {
+            AddTracker: (element, ref) => {
                 addTrackerFN();
             },
-            EditTracker: function(element, ref) {
+            EditTracker: (element, ref) => {
                 // only allow editing of one row
-                element.firstChild.click();
+                element.firstElementChild.click();
                 editTrackerFN(element);
             },
-            RemoveTracker: function(element, ref) {
+            RemoveTracker: (element, ref) => {
                 removeTrackerFN(element);
             }
         },
@@ -145,7 +153,7 @@ window.qBittorrent.PropTrackers ??= (() => {
         onShow: function() {
             const selectedTrackers = torrentTrackersTable.selectedRowsIds();
             const containsStaticTracker = selectedTrackers.some((tracker) => {
-                return (tracker.indexOf("** [") === 0);
+                return tracker.startsWith("** [");
             });
 
             if (containsStaticTracker || (selectedTrackers.length === 0)) {
@@ -161,7 +169,7 @@ window.qBittorrent.PropTrackers ??= (() => {
         }
     });
 
-    const addTrackerFN = function() {
+    const addTrackerFN = () => {
         if (current_hash.length === 0)
             return;
         new MochaUI.Window({
@@ -178,13 +186,13 @@ window.qBittorrent.PropTrackers ??= (() => {
             paddingHorizontal: 0,
             width: 500,
             height: 260,
-            onCloseComplete: function() {
+            onCloseComplete: () => {
                 updateData();
             }
         });
     };
 
-    const editTrackerFN = function(element) {
+    const editTrackerFN = (element) => {
         if (current_hash.length === 0)
             return;
 
@@ -203,32 +211,37 @@ window.qBittorrent.PropTrackers ??= (() => {
             paddingHorizontal: 0,
             width: 500,
             height: 150,
-            onCloseComplete: function() {
+            onCloseComplete: () => {
                 updateData();
             }
         });
     };
 
-    const removeTrackerFN = function(element) {
+    const removeTrackerFN = (element) => {
         if (current_hash.length === 0)
             return;
 
-        const selectedTrackers = torrentTrackersTable.selectedRowsIds();
-        new Request({
-            url: "api/v2/torrents/removeTrackers",
-            method: "post",
-            data: {
-                hash: current_hash,
-                urls: selectedTrackers.map(encodeURIComponent).join("|")
-            },
-            onSuccess: function() {
+        fetch("api/v2/torrents/removeTrackers", {
+                method: "POST",
+                body: new URLSearchParams({
+                    hash: current_hash,
+                    urls: torrentTrackersTable.selectedRowsIds().map(encodeURIComponent).join("|")
+                })
+            })
+            .then((response) => {
+                if (!response.ok)
+                    return;
+
                 updateData();
-            }
-        }).send();
+            });
+    };
+
+    const clear = () => {
+        torrentTrackersTable.clear();
     };
 
     new ClipboardJS("#CopyTrackerUrl", {
-        text: function(trigger) {
+        text: (trigger) => {
             return torrentTrackersTable.selectedRowsIds().join("\n");
         }
     });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="${LANG}">
+<html lang="${LANG}" class="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -7,33 +7,31 @@
     <link rel="stylesheet" href="css/style.css?v=${CACHEID}" type="text/css">
     <script src="scripts/lib/MooTools-Core-1.6.0-compat-compressed.js"></script>
     <script src="scripts/lib/MooTools-More-1.6.0-compat-compressed.js"></script>
+    <script src="scripts/localpreferences.js?v=${CACHEID}"></script>
+    <script src="scripts/color-scheme.js?v=${CACHEID}"></script>
     <script src="scripts/misc.js?locale=${LANG}&v=${CACHEID}"></script>
     <script>
         "use strict";
 
-        new Keyboard({
-            defaultEventType: "keydown",
-            events: {
-                "Enter": function(event) {
-                    $("setLocationButton").click();
-                    event.preventDefault();
-                },
-                "Escape": function(event) {
-                    window.parent.qBittorrent.Client.closeWindows();
-                    event.preventDefault();
-                },
-                "Esc": function(event) {
-                    window.parent.qBittorrent.Client.closeWindows();
-                    event.preventDefault();
-                }
-            }
-        }).activate();
-
         window.addEventListener("DOMContentLoaded", () => {
-            const path = new URI().getData("path");
+            window.addEventListener("keydown", (event) => {
+                switch (event.key) {
+                    case "Enter":
+                        event.preventDefault();
+                        $("setLocationButton").click();
+                        break;
+                    case "Escape":
+                        event.preventDefault();
+                        window.parent.qBittorrent.Client.closeFrameWindow(window);
+                        break;
+                }
+            });
+
+            const searchParams = new URLSearchParams(window.location.search);
+            const path = searchParams.get("path");
 
             // set text field to current value
-            if (path)
+            if (path !== null)
                 $("setLocation").value = decodeURIComponent(path);
 
             $("setLocation").focus();
@@ -48,21 +46,21 @@
                     return;
                 }
 
-                const hashesList = new URI().getData("hashes");
-                new Request({
-                    url: "api/v2/torrents/setLocation",
-                    method: "post",
-                    data: {
-                        hashes: hashesList,
-                        location: location
-                    },
-                    onSuccess: function() {
-                        window.parent.qBittorrent.Client.closeWindows();
-                    },
-                    onFailure: function(xhr) {
-                        $("error_div").textContent = xhr.response;
-                    }
-                }).send();
+                fetch("api/v2/torrents/setLocation", {
+                        method: "POST",
+                        body: new URLSearchParams({
+                            hashes: searchParams.get("hashes"),
+                            location: location
+                        })
+                    })
+                    .then(async (response) => {
+                        if (!response.ok) {
+                            $("error_div").textContent = await response.text();
+                            return;
+                        }
+
+                        window.parent.qBittorrent.Client.closeFrameWindow(window);
+                    });
             });
         });
     </script>

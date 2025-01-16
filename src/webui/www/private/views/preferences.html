@@ -8,6 +8,16 @@
     </fieldset>
 
     <fieldset class="settings">
+        <legend>QBT_TR(Interface)QBT_TR[CONTEXT=OptionsDialog]</legend>
+        <label for="colorSchemeSelect">QBT_TR(Color scheme:)QBT_TR[CONTEXT=OptionsDialog]</label>
+        <select id="colorSchemeSelect">
+            <option value="0">QBT_TR(Auto)QBT_TR[CONTEXT=OptionsDialog]</option>
+            <option value="1">QBT_TR(Light)QBT_TR[CONTEXT=OptionsDialog]</option>
+            <option value="2">QBT_TR(Dark)QBT_TR[CONTEXT=OptionsDialog]</option>
+        </select>
+    </fieldset>
+
+    <fieldset class="settings">
         <legend>QBT_TR(Transfer list)QBT_TR[CONTEXT=OptionsDialog]</legend>
         <div class="formRow" style="margin-bottom: 3px;" title="QBT_TR(Shows a confirmation dialog upon torrent deletion)QBT_TR[CONTEXT=OptionsDialog]">
             <input type="checkbox" id="confirmTorrentDeletion">
@@ -79,6 +89,11 @@
             </tbody>
         </table>
     </fieldset>
+
+    <div class="formRow" style="margin-bottom: 3px;">
+        <input type="checkbox" id="statusBarExternalIP">
+        <label for="statusBarExternalIP">QBT_TR(Show external IP in status bar)QBT_TR[CONTEXT=OptionsDialog]</label>
+    </div>
 
     <div class="formRow" style="margin-bottom: 5px;">
         <input type="checkbox" id="performanceWarning">
@@ -809,6 +824,23 @@
             <label id="addTrackersLabel" for="add_trackers_checkbox">QBT_TR(Automatically append these trackers to new downloads:)QBT_TR[CONTEXT=OptionsDialog]</label>
         </legend>
         <textarea id="add_trackers_textarea" rows="5" cols="70" aria-labelledby="addTrackersLabel"></textarea>
+    </fieldset>
+
+    <fieldset class="settings">
+        <legend>
+            <input type="checkbox" id="addTrackersFromURLCheckbox" onclick="qBittorrent.Preferences.updateAddTrackersFromURLEnabled();">
+            <label for="addTrackersFromURLCheckbox">QBT_TR(Automatically append trackers from URL to new downloads:)QBT_TR[CONTEXT=OptionsDialog]</label>
+        </legend>
+        <div class="formRow">
+            <label for="addTrackersURL">QBT_TR(URL:)QBT_TR[CONTEXT=OptionsDialog]</label>
+            <input type="text" id="addTrackersURL" style="width: 40em;">
+        </div>
+        <div class="formRow">
+            <fieldset class="settings">
+                <legend id="fetchedTrackersFromURLLabel">QBT_TR(Fetched trackers)QBT_TR[CONTEXT=OptionsDialog]</legend>
+                <textarea id="addTrackersURLListTextarea" aria-labelledby="fetchedTrackersFromURLLabel" rows="5" cols="70" readonly></textarea>
+            </fieldset>
+        </div>
     </fieldset>
 </div>
 
@@ -1721,6 +1753,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 updateSlowTorrentsSettings: updateSlowTorrentsSettings,
                 updateMaxRatioTimeEnabled: updateMaxRatioTimeEnabled,
                 updateAddTrackersEnabled: updateAddTrackersEnabled,
+                updateAddTrackersFromURLEnabled: updateAddTrackersFromURLEnabled,
                 updateHttpsSettings: updateHttpsSettings,
                 updateBypasssAuthSettings: updateBypasssAuthSettings,
                 updateAlternativeWebUISettings: updateAlternativeWebUISettings,
@@ -1736,17 +1769,18 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
         // Behavior tab
         const numberInputLimiter = (input) => {
-            const min = input.getAttribute("min");
-            const max = input.getAttribute("max");
+            const inputNumber = Number(input.value);
 
-            if (min && (input.value.toInt() < min.toInt()))
+            const min = input.getAttribute("min");
+            if (min && (inputNumber < Number(min)))
                 input.value = min;
 
-            if (max && (input.value.toInt() > max.toInt()))
+            const max = input.getAttribute("max");
+            if (max && (inputNumber > Number(max)))
                 input.value = max;
         };
 
-        const updateFileLogEnabled = function() {
+        const updateFileLogEnabled = () => {
             const isFileLogEnabled = $("filelog_checkbox").checked;
             $("filelog_save_path_input").disabled = !isFileLogEnabled;
             $("filelog_backup_checkbox").disabled = !isFileLogEnabled;
@@ -1756,12 +1790,12 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             updateFileLogDeleteEnabled();
         };
 
-        const updateFileLogBackupEnabled = function() {
+        const updateFileLogBackupEnabled = () => {
             const pros = $("filelog_backup_checkbox").getProperties("disabled", "checked");
             $("filelog_max_size_input").disabled = pros.disabled || !pros.checked;
         };
 
-        const updateFileLogDeleteEnabled = function() {
+        const updateFileLogDeleteEnabled = () => {
             const pros = $("filelog_delete_old_checkbox").getProperties("disabled", "checked");
             $("filelog_age_input").disabled = pros.disabled || !pros.checked;
             $("filelog_age_type_select").disabled = pros.disabled || !pros.checked;
@@ -1770,7 +1804,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
         // Downloads tab
         let watchedFoldersTable;
 
-        const updateTempDirEnabled = function() {
+        const updateTempDirEnabled = () => {
             const isTempDirEnabled = $("temppath_checkbox").checked;
             $("temppath_text").disabled = !isTempDirEnabled;
         };
@@ -1835,22 +1869,22 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             return folders;
         };
 
-        const updateExcludedFileNamesEnabled = function() {
+        const updateExcludedFileNamesEnabled = () => {
             const isAExcludedFileNamesEnabled = $("excludedFileNamesCheckbox").checked;
             $("excludedFileNamesTextarea").disabled = !isAExcludedFileNamesEnabled;
         };
 
-        const updateExportDirEnabled = function() {
+        const updateExportDirEnabled = () => {
             const isExportDirEnabled = $("exportdir_checkbox").checked;
             $("exportdir_text").disabled = !isExportDirEnabled;
         };
 
-        const updateExportDirFinEnabled = function() {
+        const updateExportDirFinEnabled = () => {
             const isExportDirFinEnabled = $("exportdirfin_checkbox").checked;
             $("exportdirfin_text").disabled = !isExportDirFinEnabled;
         };
 
-        const updateMailNotification = function() {
+        const updateMailNotification = () => {
             const isMailNotificationEnabled = $("mail_notification_checkbox").checked;
             $("src_email_txt").disabled = !isMailNotificationEnabled;
             $("dest_email_txt").disabled = !isMailNotificationEnabled;
@@ -1865,65 +1899,66 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             }
         };
 
-        const updateMailAuthSettings = function() {
+        const updateMailAuthSettings = () => {
             const isMailAuthEnabled = $("mail_auth_checkbox").checked;
             $("mail_username_text").disabled = !isMailAuthEnabled;
             $("mail_password_text").disabled = !isMailAuthEnabled;
         };
 
-        const sendTestEmail = function() {
-            new Request({
-                url: "api/v2/app/sendTestEmail",
-                method: "post",
-                onFailure: function() {
-                    alert("QBT_TR(Could not contact qBittorrent)QBT_TR[CONTEXT=HttpServer]");
-                },
-                onSuccess: function() {
+        const sendTestEmail = () => {
+            fetch("api/v2/app/sendTestEmail", {
+                    method: "POST"
+                })
+                .then((response) => {
+                    if (!response.ok) {
+                        alert("QBT_TR(Could not contact qBittorrent)QBT_TR[CONTEXT=HttpServer]");
+                        return;
+                    }
+
                     alert("QBT_TR(Attempted to send email. Check your inbox to confirm success)QBT_TR[CONTEXT=OptionsDialog]");
-                }
-            }).send();
+                });
         };
 
-        const updateAutoRunOnTorrentAdded = function() {
+        const updateAutoRunOnTorrentAdded = () => {
             const isAutoRunOnTorrentAddedEnabled = $("autorunOnTorrentAddedCheckbox").checked;
             $("autorunOnTorrentAddedProgram").disabled = !isAutoRunOnTorrentAddedEnabled;
         };
 
-        const updateAutoRun = function() {
+        const updateAutoRun = () => {
             const isAutoRunEnabled = $("autorun_checkbox").checked;
             $("autorunProg_txt").disabled = !isAutoRunEnabled;
         };
 
         // Connection tab
 
-        const updateMaxConnecEnabled = function() {
+        const updateMaxConnecEnabled = () => {
             const isMaxConnecEnabled = $("max_connec_checkbox").checked;
             $("max_connec_value").disabled = !isMaxConnecEnabled;
         };
 
-        const updateMaxConnecPerTorrentEnabled = function() {
+        const updateMaxConnecPerTorrentEnabled = () => {
             const isMaxConnecPerTorrentEnabled = $("max_connec_per_torrent_checkbox").checked;
             $("max_connec_per_torrent_value").disabled = !isMaxConnecPerTorrentEnabled;
         };
 
-        const updateMaxUploadsEnabled = function() {
+        const updateMaxUploadsEnabled = () => {
             const isMaxUploadsEnabled = $("max_uploads_checkbox").checked;
             $("max_uploads_value").disabled = !isMaxUploadsEnabled;
         };
 
-        const updateMaxUploadsPerTorrentEnabled = function() {
+        const updateMaxUploadsPerTorrentEnabled = () => {
             const isMaxUploadsPerTorrentEnabled = $("max_uploads_per_torrent_checkbox").checked;
             $("max_uploads_per_torrent_value").disabled = !isMaxUploadsPerTorrentEnabled;
         };
 
-        const updateI2PSettingsEnabled = function() {
+        const updateI2PSettingsEnabled = () => {
             const isI2PEnabled = $("i2pEnabledCheckbox").checked;
             $("i2pAddress").disabled = !isI2PEnabled;
             $("i2pPort").disabled = !isI2PEnabled;
             $("i2pMixedMode").disabled = !isI2PEnabled;
         };
 
-        const updatePeerProxySettings = function() {
+        const updatePeerProxySettings = () => {
             const proxyType = $("peer_proxy_type_select").value;
             const isProxyDisabled = (proxyType === "None");
             const isProxySocks4 = (proxyType === "SOCKS4");
@@ -1941,7 +1976,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             updatePeerProxyAuthSettings();
         };
 
-        const updatePeerProxyAuthSettings = function() {
+        const updatePeerProxyAuthSettings = () => {
             const proxyType = $("peer_proxy_type_select").value;
             const isProxyDisabled = (proxyType === "None");
             const isPeerProxyAuthEnabled = (!$("peer_proxy_auth_checkbox").disabled && $("peer_proxy_auth_checkbox").checked);
@@ -1949,13 +1984,13 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             $("peer_proxy_password_text").disabled = (isProxyDisabled || !isPeerProxyAuthEnabled);
         };
 
-        const updateFilterSettings = function() {
+        const updateFilterSettings = () => {
             const isIPFilterEnabled = $("ipfilter_text_checkbox").checked;
             $("ipfilter_text").disabled = !isIPFilterEnabled;
         };
 
         // Speed tab
-        const updateSchedulingEnabled = function() {
+        const updateSchedulingEnabled = () => {
             const isLimitSchedulingEnabled = $("limitSchedulingCheckbox").checked;
             $("schedule_from_hour").disabled = !isLimitSchedulingEnabled;
             $("schedule_from_min").disabled = !isLimitSchedulingEnabled;
@@ -1965,7 +2000,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
         };
 
         // Bittorrent tab
-        const updateQueueingSystem = function() {
+        const updateQueueingSystem = () => {
             const isQueueingEnabled = $("queueing_checkbox").checked;
             $("max_active_dl_value").disabled = !isQueueingEnabled;
             $("max_active_up_value").disabled = !isQueueingEnabled;
@@ -1974,14 +2009,14 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             updateSlowTorrentsSettings();
         };
 
-        const updateSlowTorrentsSettings = function() {
+        const updateSlowTorrentsSettings = () => {
             const isDontCountSlowTorrentsEnabled = (!$("dont_count_slow_torrents_checkbox").disabled) && $("dont_count_slow_torrents_checkbox").checked;
             $("dl_rate_threshold").disabled = !isDontCountSlowTorrentsEnabled;
             $("ul_rate_threshold").disabled = !isDontCountSlowTorrentsEnabled;
             $("torrent_inactive_timer").disabled = !isDontCountSlowTorrentsEnabled;
         };
 
-        const updateMaxRatioTimeEnabled = function() {
+        const updateMaxRatioTimeEnabled = () => {
             const isMaxRatioEnabled = $("max_ratio_checkbox").checked;
             $("max_ratio_value").disabled = !isMaxRatioEnabled;
 
@@ -1994,44 +2029,49 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             $("max_ratio_act").disabled = !(isMaxRatioEnabled || isMaxSeedingTimeEnabled || isMaxInactiveSeedingTimeEnabled);
         };
 
-        const updateAddTrackersEnabled = function() {
+        const updateAddTrackersEnabled = () => {
             const isAddTrackersEnabled = $("add_trackers_checkbox").checked;
             $("add_trackers_textarea").disabled = !isAddTrackersEnabled;
         };
 
+        const updateAddTrackersFromURLEnabled = () => {
+            const isAddTrackersFromURLEnabled = $("addTrackersFromURLCheckbox").checked;
+            $("addTrackersURL").disabled = !isAddTrackersFromURLEnabled;
+        };
+
         // WebUI tab
-        const updateHttpsSettings = function() {
+        const updateHttpsSettings = () => {
             const isUseHttpsEnabled = $("use_https_checkbox").checked;
             $("ssl_cert_text").disabled = !isUseHttpsEnabled;
             $("ssl_key_text").disabled = !isUseHttpsEnabled;
         };
 
-        const updateBypasssAuthSettings = function() {
+        const updateBypasssAuthSettings = () => {
             const isBypassAuthSubnetWhitelistEnabled = $("bypass_auth_subnet_whitelist_checkbox").checked;
             $("bypass_auth_subnet_whitelist_textarea").disabled = !isBypassAuthSubnetWhitelistEnabled;
         };
 
-        const updateAlternativeWebUISettings = function() {
+        const updateAlternativeWebUISettings = () => {
             const isUseAlternativeWebUIEnabled = $("use_alt_webui_checkbox").checked;
             $("webui_files_location_textarea").disabled = !isUseAlternativeWebUIEnabled;
         };
 
-        const updateHostHeaderValidationSettings = function() {
+        const updateHostHeaderValidationSettings = () => {
             const isHostHeaderValidationEnabled = $("host_header_validation_checkbox").checked;
             $("webui_domain_textarea").disabled = !isHostHeaderValidationEnabled;
         };
 
-        const updateWebUICustomHTTPHeadersSettings = function() {
+        const updateWebUICustomHTTPHeadersSettings = () => {
             const isEnabled = $("webUIUseCustomHTTPHeadersCheckbox").checked;
             $("webUICustomHTTPHeadersTextarea").disabled = !isEnabled;
         };
 
-        const updateWebUIReverseProxySettings = function() {
+        const updateWebUIReverseProxySettings = () => {
             const isEnabled = $("webUIReverseProxySupportCheckbox").checked;
             $("webUIReverseProxiesListTextarea").disabled = !isEnabled;
         };
 
-        const updateDynDnsSettings = function() {
+        const updateDynDnsSettings = () => {
             const isDynDnsEnabled = $("use_dyndns_checkbox").checked;
             $("dyndns_select").disabled = !isDynDnsEnabled;
             $("dyndns_domain_text").disabled = !isDynDnsEnabled;
@@ -2039,21 +2079,21 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             $("dyndns_password_text").disabled = !isDynDnsEnabled;
         };
 
-        const registerDynDns = function() {
-            if ($("dyndns_select").value.toInt() === 1)
+        const registerDynDns = () => {
+            if (Number($("dyndns_select").value) === 1)
                 window.open("http://www.no-ip.com/services/managed_dns/free_dynamic_dns.html", "NO-IP Registration");
             else
                 window.open("https://www.dyndns.com/account/services/hosts/add.html", "DynDNS Registration");
         };
 
-        const generateRandomPort = function() {
+        const generateRandomPort = () => {
             const min = 1024;
             const max = 65535;
             const port = Math.floor(Math.random() * (max - min + 1) + min);
             $("port_value").value = port;
         };
 
-        const time_padding = function(val) {
+        const time_padding = (val) => {
             let ret = val.toString();
             if (ret.length === 1)
                 ret = "0" + ret;
@@ -2061,17 +2101,19 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
         };
 
         // Advanced Tab
-        const updateNetworkInterfaces = function(default_iface, default_iface_name) {
-            const url = "api/v2/app/networkInterfaceList";
+        const updateNetworkInterfaces = (default_iface, default_iface_name) => {
             $("networkInterface").getChildren().each(c => c.destroy());
-            new Request.JSON({
-                url: url,
-                method: "get",
-                noCache: true,
-                onFailure: function() {
-                    alert("Could not contact qBittorrent");
-                },
-                onSuccess: function(ifaces) {
+            fetch("api/v2/app/networkInterfaceList", {
+                    method: "GET",
+                    cache: "no-store"
+                })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        alert("Could not contact qBittorrent");
+                        return;
+                    }
+
+                    const ifaces = await response.json();
                     if (!Array.isArray(ifaces))
                         return;
 
@@ -2084,24 +2126,26 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         $("networkInterface").options.add(new Option(item.name, item.value));
                     });
                     $("networkInterface").value = default_iface;
-                }
-            }).send();
+                });
         };
 
-        const updateInterfaceAddresses = function(iface, default_addr) {
-            const url = "api/v2/app/networkInterfaceAddressList";
+        const updateInterfaceAddresses = (iface, default_addr) => {
             $("optionalIPAddressToBind").getChildren().each(c => c.destroy());
-            new Request.JSON({
-                url: url,
-                method: "get",
-                noCache: true,
-                data: {
-                    "iface": iface
-                },
-                onFailure: function() {
-                    alert("Could not contact qBittorrent");
-                },
-                onSuccess: function(addresses) {
+            const url = new URL("api/v2/app/networkInterfaceAddressList", window.location);
+            url.search = new URLSearchParams({
+                iface: iface
+            });
+            fetch(url, {
+                    method: "GET",
+                    cache: "no-store"
+                })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        alert("Could not contact qBittorrent");
+                        return;
+                    }
+
+                    const addresses = await response.json();
                     if (!addresses)
                         return;
 
@@ -2112,8 +2156,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         $("optionalIPAddressToBind").options.add(new Option(item, item));
                     });
                     $("optionalIPAddressToBind").value = default_addr;
-                }
-            }).send();
+                });
         };
 
         const updateWebuiLocaleSelect = (selected) => {
@@ -2122,16 +2165,33 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 languages.push($("locale_select").options[i].value);
 
             if (!languages.includes(selected)) {
-                const lang = selected.slice(0, selected.indexOf("_"));
+                const lang = selected.split("_", 1)[0];
                 selected = languages.includes(lang) ? lang : "en";
             }
             $("locale_select").value = selected;
         };
 
-        const loadPreferences = function() {
+        const updateColoSchemeSelect = () => {
+            const combobox = document.getElementById("colorSchemeSelect");
+            const colorScheme = LocalPreferences.get("color_scheme");
+
+            if (colorScheme === "light")
+                combobox.options[1].selected = true;
+            else if (colorScheme === "dark")
+                combobox.options[2].selected = true;
+            else
+                combobox.options[0].selected = true;
+        };
+
+        const loadPreferences = () => {
             window.parent.qBittorrent.Cache.preferences.init({
                 onSuccess: (pref) => {
                     // Behavior tab
+                    // Language
+                    updateWebuiLocaleSelect(pref.locale);
+                    updateColoSchemeSelect();
+                    $("statusBarExternalIP").checked = pref.status_bar_external_ip;
+                    $("performanceWarning").checked = pref.performance_warning;
                     document.getElementById("displayFullURLTrackerColumn").checked = (LocalPreferences.get("full_url_tracker_column", "false") === "true");
                     document.getElementById("hideZeroFiltersCheckbox").checked = (LocalPreferences.get("hide_zero_status_filters", "false") === "true");
                     $("dblclickDownloadSelect").value = LocalPreferences.get("dblclick_download", "1");
@@ -2259,11 +2319,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
                     // Connection tab
                     // Listening Port
-                    $("port_value").value = pref.listen_port.toInt();
+                    $("port_value").value = Number(pref.listen_port);
                     $("upnp_checkbox").checked = pref.upnp;
 
                     // Connections Limits
-                    const max_connec = pref.max_connec.toInt();
+                    const max_connec = Number(pref.max_connec);
                     if (max_connec <= 0) {
                         $("max_connec_checkbox").checked = false;
                         $("max_connec_value").value = 500;
@@ -2273,7 +2333,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         $("max_connec_value").value = max_connec;
                     }
                     updateMaxConnecEnabled();
-                    const max_connec_per_torrent = pref.max_connec_per_torrent.toInt();
+                    const max_connec_per_torrent = Number(pref.max_connec_per_torrent);
                     if (max_connec_per_torrent <= 0) {
                         $("max_connec_per_torrent_checkbox").checked = false;
                         $("max_connec_per_torrent_value").value = 100;
@@ -2283,7 +2343,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         $("max_connec_per_torrent_value").value = max_connec_per_torrent;
                     }
                     updateMaxConnecPerTorrentEnabled();
-                    const max_uploads = pref.max_uploads.toInt();
+                    const max_uploads = Number(pref.max_uploads);
                     if (max_uploads <= 0) {
                         $("max_uploads_checkbox").checked = false;
                         $("max_uploads_value").value = 8;
@@ -2293,7 +2353,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         $("max_uploads_value").value = max_uploads;
                     }
                     updateMaxUploadsEnabled();
-                    const max_uploads_per_torrent = pref.max_uploads_per_torrent.toInt();
+                    const max_uploads_per_torrent = Number(pref.max_uploads_per_torrent);
                     if (max_uploads_per_torrent <= 0) {
                         $("max_uploads_per_torrent_checkbox").checked = false;
                         $("max_uploads_per_torrent_value").value = 4;
@@ -2334,11 +2394,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
                     // Speed tab
                     // Global Rate Limits
-                    $("up_limit_value").value = (pref.up_limit.toInt() / 1024);
-                    $("dl_limit_value").value = (pref.dl_limit.toInt() / 1024);
+                    $("up_limit_value").value = (Number(pref.up_limit) / 1024);
+                    $("dl_limit_value").value = (Number(pref.dl_limit) / 1024);
                     // Alternative Global Rate Limits
-                    $("alt_up_limit_value").value = (pref.alt_up_limit.toInt() / 1024);
-                    $("alt_dl_limit_value").value = (pref.alt_dl_limit.toInt() / 1024);
+                    $("alt_up_limit_value").value = (Number(pref.alt_up_limit) / 1024);
+                    $("alt_dl_limit_value").value = (Number(pref.alt_dl_limit) / 1024);
 
                     $("enable_protocol_combobox").value = pref.bittorrent_protocol;
                     $("limit_utp_rate_checkbox").checked = pref.limit_utp_rate;
@@ -2359,7 +2419,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     $("dht_checkbox").checked = pref.dht;
                     $("pex_checkbox").checked = pref.pex;
                     $("lsd_checkbox").checked = pref.lsd;
-                    const encryption = pref.encryption.toInt();
+                    const encryption = Number(pref.encryption);
                     $("encryption_select").getChildren("option")[encryption].selected = true;
                     $("anonymous_mode_checkbox").checked = pref.anonymous_mode;
 
@@ -2367,24 +2427,24 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
                     // Torrent Queueing
                     $("queueing_checkbox").checked = pref.queueing_enabled;
-                    $("max_active_dl_value").value = pref.max_active_downloads.toInt();
-                    $("max_active_up_value").value = pref.max_active_uploads.toInt();
-                    $("max_active_to_value").value = pref.max_active_torrents.toInt();
+                    $("max_active_dl_value").value = Number(pref.max_active_downloads);
+                    $("max_active_up_value").value = Number(pref.max_active_uploads);
+                    $("max_active_to_value").value = Number(pref.max_active_torrents);
                     $("dont_count_slow_torrents_checkbox").checked = pref.dont_count_slow_torrents;
-                    $("dl_rate_threshold").value = pref.slow_torrent_dl_rate_threshold.toInt();
-                    $("ul_rate_threshold").value = pref.slow_torrent_ul_rate_threshold.toInt();
-                    $("torrent_inactive_timer").value = pref.slow_torrent_inactive_timer.toInt();
+                    $("dl_rate_threshold").value = Number(pref.slow_torrent_dl_rate_threshold);
+                    $("ul_rate_threshold").value = Number(pref.slow_torrent_ul_rate_threshold);
+                    $("torrent_inactive_timer").value = Number(pref.slow_torrent_inactive_timer);
                     updateQueueingSystem();
 
                     // Share Limiting
                     $("max_ratio_checkbox").checked = pref.max_ratio_enabled;
                     $("max_ratio_value").value = (pref.max_ratio_enabled ? pref.max_ratio : 1);
                     $("max_seeding_time_checkbox").checked = pref.max_seeding_time_enabled;
-                    $("max_seeding_time_value").value = (pref.max_seeding_time_enabled ? pref.max_seeding_time.toInt() : 1440);
+                    $("max_seeding_time_value").value = (pref.max_seeding_time_enabled ? Number(pref.max_seeding_time) : 1440);
                     $("max_inactive_seeding_time_checkbox").checked = pref.max_inactive_seeding_time_enabled;
-                    $("max_inactive_seeding_time_value").value = (pref.max_inactive_seeding_time_enabled ? pref.max_inactive_seeding_time.toInt() : 1440);
+                    $("max_inactive_seeding_time_value").value = (pref.max_inactive_seeding_time_enabled ? Number(pref.max_inactive_seeding_time) : 1440);
                     let maxRatioAct = 0;
-                    switch (pref.max_ratio_act.toInt()) {
+                    switch (Number(pref.max_ratio_act)) {
                         case 0: // Stop
                         default:
                             maxRatioAct = 0;
@@ -2405,7 +2465,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     // Add trackers
                     $("add_trackers_checkbox").checked = pref.add_trackers_enabled;
                     $("add_trackers_textarea").value = pref.add_trackers;
+                    $("addTrackersFromURLCheckbox").checked = pref.add_trackers_from_url_enabled;
+                    $("addTrackersURLListTextarea").value = pref.add_trackers_url_list;
+                    $("addTrackersURL").value = pref.add_trackers_url;
                     updateAddTrackersEnabled();
+                    updateAddTrackersFromURLEnabled();
 
                     // RSS Tab
                     $("enable_fetching_rss_feeds_checkbox").checked = pref.rss_processing_enabled;
@@ -2417,10 +2481,6 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     $("rss_filter_textarea").value = pref.rss_smart_episode_filters;
 
                     // WebUI tab
-                    // Language
-                    updateWebuiLocaleSelect(pref.locale);
-                    $("performanceWarning").checked = pref.performance_warning;
-
                     // HTTP Server
                     $("webui_domain_textarea").value = pref.web_ui_domain_list;
                     $("webui_address_value").value = pref.web_ui_address;
@@ -2437,9 +2497,9 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     $("bypass_auth_subnet_whitelist_checkbox").checked = pref.bypass_auth_subnet_whitelist_enabled;
                     $("bypass_auth_subnet_whitelist_textarea").value = pref.bypass_auth_subnet_whitelist;
                     updateBypasssAuthSettings();
-                    $("webUIMaxAuthFailCountInput").value = pref.web_ui_max_auth_fail_count.toInt();
-                    $("webUIBanDurationInput").value = pref.web_ui_ban_duration.toInt();
-                    $("webUISessionTimeoutInput").value = pref.web_ui_session_timeout.toInt();
+                    $("webUIMaxAuthFailCountInput").value = Number(pref.web_ui_max_auth_fail_count);
+                    $("webUIBanDurationInput").value = Number(pref.web_ui_ban_duration);
+                    $("webUISessionTimeoutInput").value = Number(pref.web_ui_session_timeout);
 
                     // Use alternative WebUI
                     $("use_alt_webui_checkbox").checked = pref.alternative_webui_enabled;
@@ -2546,11 +2606,22 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             });
         };
 
-        const applyPreferences = function() {
+        const applyPreferences = () => {
             const settings = {};
             // Validate form data
 
             // Behavior tab
+            // Language
+            settings["locale"] = $("locale_select").value;
+            const colorScheme = Number(document.getElementById("colorSchemeSelect").value);
+            if (colorScheme === 0)
+                LocalPreferences.remove("color_scheme");
+            else if (colorScheme === 1)
+                LocalPreferences.set("color_scheme", "light");
+            else
+                LocalPreferences.set("color_scheme", "dark");
+            settings["status_bar_external_ip"] = $("statusBarExternalIP").checked;
+            settings["performance_warning"] = $("performanceWarning").checked;
             LocalPreferences.set("full_url_tracker_column", document.getElementById("displayFullURLTrackerColumn").checked.toString());
             LocalPreferences.set("hide_zero_status_filters", document.getElementById("hideZeroFiltersCheckbox").checked.toString());
             LocalPreferences.set("dblclick_download", $("dblclickDownloadSelect").value);
@@ -2623,7 +2694,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
             // Connection tab
             // Listening Port
-            const listen_port = $("port_value").value.toInt();
+            const listen_port = Number($("port_value").value);
             if (isNaN(listen_port) || (listen_port < 0) || (listen_port > 65535)) {
                 alert("QBT_TR(The port used for incoming connections must be between 0 and 65535.)QBT_TR[CONTEXT=HttpServer]");
                 return;
@@ -2634,7 +2705,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             // Connections Limits
             let max_connec = -1;
             if ($("max_connec_checkbox").checked) {
-                max_connec = $("max_connec_value").value.toInt();
+                max_connec = Number($("max_connec_value").value);
                 if (isNaN(max_connec) || (max_connec <= 0)) {
                     alert("QBT_TR(Maximum number of connections limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2643,7 +2714,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["max_connec"] = max_connec;
             let max_connec_per_torrent = -1;
             if ($("max_connec_per_torrent_checkbox").checked) {
-                max_connec_per_torrent = $("max_connec_per_torrent_value").value.toInt();
+                max_connec_per_torrent = Number($("max_connec_per_torrent_value").value);
                 if (isNaN(max_connec_per_torrent) || (max_connec_per_torrent <= 0)) {
                     alert("QBT_TR(Maximum number of connections per torrent limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2652,7 +2723,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["max_connec_per_torrent"] = max_connec_per_torrent;
             let max_uploads = -1;
             if ($("max_uploads_checkbox").checked) {
-                max_uploads = $("max_uploads_value").value.toInt();
+                max_uploads = Number($("max_uploads_value").value);
                 if (isNaN(max_uploads) || (max_uploads <= 0)) {
                     alert("QBT_TR(Global number of upload slots limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2661,7 +2732,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["max_uploads"] = max_uploads;
             let max_uploads_per_torrent = -1;
             if ($("max_uploads_per_torrent_checkbox").checked) {
-                max_uploads_per_torrent = $("max_uploads_per_torrent_value").value.toInt();
+                max_uploads_per_torrent = Number($("max_uploads_per_torrent_value").value);
                 if (isNaN(max_uploads_per_torrent) || (max_uploads_per_torrent <= 0)) {
                     alert("QBT_TR(Maximum number of upload slots per torrent limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2672,13 +2743,13 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             // I2P
             settings["i2p_enabled"] = $("i2pEnabledCheckbox").checked;
             settings["i2p_address"] = $("i2pAddress").value;
-            settings["i2p_port"] = $("i2pPort").value.toInt();
+            settings["i2p_port"] = Number($("i2pPort").value);
             settings["i2p_mixed_mode"] = $("i2pMixedMode").checked;
 
             // Proxy Server
             settings["proxy_type"] = $("peer_proxy_type_select").value;
             settings["proxy_ip"] = $("peer_proxy_host_text").value;
-            settings["proxy_port"] = $("peer_proxy_port_value").value.toInt();
+            settings["proxy_port"] = Number($("peer_proxy_port_value").value);
             settings["proxy_auth_enabled"] = $("peer_proxy_auth_checkbox").checked;
             settings["proxy_username"] = $("peer_proxy_username_text").value;
             settings["proxy_password"] = $("peer_proxy_password_text").value;
@@ -2696,14 +2767,14 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
             // Speed tab
             // Global Rate Limits
-            const up_limit = $("up_limit_value").value.toInt() * 1024;
+            const up_limit = Number($("up_limit_value").value) * 1024;
             if (isNaN(up_limit) || (up_limit < 0)) {
                 alert("QBT_TR(Global upload rate limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                 return;
             }
             settings["up_limit"] = up_limit;
 
-            const dl_limit = $("dl_limit_value").value.toInt() * 1024;
+            const dl_limit = Number($("dl_limit_value").value) * 1024;
             if (isNaN(dl_limit) || (dl_limit < 0)) {
                 alert("QBT_TR(Global download rate limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                 return;
@@ -2711,14 +2782,14 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["dl_limit"] = dl_limit;
 
             // Alternative Global Rate Limits
-            const alt_up_limit = $("alt_up_limit_value").value.toInt() * 1024;
+            const alt_up_limit = Number($("alt_up_limit_value").value) * 1024;
             if (isNaN(alt_up_limit) || (alt_up_limit < 0)) {
                 alert("QBT_TR(Alternative upload rate limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                 return;
             }
             settings["alt_up_limit"] = alt_up_limit;
 
-            const alt_dl_limit = $("alt_dl_limit_value").value.toInt() * 1024;
+            const alt_dl_limit = Number($("alt_dl_limit_value").value) * 1024;
             if (isNaN(alt_dl_limit) || (alt_dl_limit < 0)) {
                 alert("QBT_TR(Alternative download rate limit must be greater than 0 or disabled.)QBT_TR[CONTEXT=HttpServer]");
                 return;
@@ -2734,11 +2805,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             const scheduling_enabled = $("limitSchedulingCheckbox").checked;
             settings["scheduler_enabled"] = scheduling_enabled;
             if (scheduling_enabled) {
-                settings["schedule_from_hour"] = $("schedule_from_hour").value.toInt();
-                settings["schedule_from_min"] = $("schedule_from_min").value.toInt();
-                settings["schedule_to_hour"] = $("schedule_to_hour").value.toInt();
-                settings["schedule_to_min"] = $("schedule_to_min").value.toInt();
-                settings["scheduler_days"] = $("schedule_freq_select").value.toInt();
+                settings["schedule_from_hour"] = Number($("schedule_from_hour").value);
+                settings["schedule_from_min"] = Number($("schedule_from_min").value);
+                settings["schedule_to_hour"] = Number($("schedule_to_hour").value);
+                settings["schedule_to_min"] = Number($("schedule_to_min").value);
+                settings["scheduler_days"] = Number($("schedule_freq_select").value);
             }
 
             // Bittorrent tab
@@ -2754,38 +2825,38 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             // Torrent Queueing
             settings["queueing_enabled"] = $("queueing_checkbox").checked;
             if ($("queueing_checkbox").checked) {
-                const max_active_downloads = $("max_active_dl_value").value.toInt();
+                const max_active_downloads = Number($("max_active_dl_value").value);
                 if (isNaN(max_active_downloads) || (max_active_downloads < -1)) {
                     alert("QBT_TR(Maximum active downloads must be greater than -1.)QBT_TR[CONTEXT=HttpServer]");
                     return;
                 }
                 settings["max_active_downloads"] = max_active_downloads;
-                const max_active_uploads = $("max_active_up_value").value.toInt();
+                const max_active_uploads = Number($("max_active_up_value").value);
                 if (isNaN(max_active_uploads) || (max_active_uploads < -1)) {
                     alert("QBT_TR(Maximum active uploads must be greater than -1.)QBT_TR[CONTEXT=HttpServer]");
                     return;
                 }
                 settings["max_active_uploads"] = max_active_uploads;
-                const max_active_torrents = $("max_active_to_value").value.toInt();
+                const max_active_torrents = Number($("max_active_to_value").value);
                 if (isNaN(max_active_torrents) || (max_active_torrents < -1)) {
                     alert("QBT_TR(Maximum active torrents must be greater than -1.)QBT_TR[CONTEXT=HttpServer]");
                     return;
                 }
                 settings["max_active_torrents"] = max_active_torrents;
                 settings["dont_count_slow_torrents"] = $("dont_count_slow_torrents_checkbox").checked;
-                const dl_rate_threshold = $("dl_rate_threshold").value.toInt();
+                const dl_rate_threshold = Number($("dl_rate_threshold").value);
                 if (isNaN(dl_rate_threshold) || (dl_rate_threshold < 1)) {
                     alert("QBT_TR(Download rate threshold must be greater than 0.)QBT_TR[CONTEXT=HttpServer]");
                     return;
                 }
                 settings["slow_torrent_dl_rate_threshold"] = dl_rate_threshold;
-                const ul_rate_threshold = $("ul_rate_threshold").value.toInt();
+                const ul_rate_threshold = Number($("ul_rate_threshold").value);
                 if (isNaN(ul_rate_threshold) || (ul_rate_threshold < 1)) {
                     alert("QBT_TR(Upload rate threshold must be greater than 0.)QBT_TR[CONTEXT=HttpServer]");
                     return;
                 }
                 settings["slow_torrent_ul_rate_threshold"] = ul_rate_threshold;
-                const torrent_inactive_timer = $("torrent_inactive_timer").value.toInt();
+                const torrent_inactive_timer = Number($("torrent_inactive_timer").value);
                 if (isNaN(torrent_inactive_timer) || (torrent_inactive_timer < 1)) {
                     alert("QBT_TR(Torrent inactivity timer must be greater than 0.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2807,7 +2878,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
             let max_seeding_time = -1;
             if ($("max_seeding_time_checkbox").checked) {
-                max_seeding_time = $("max_seeding_time_value").value.toInt();
+                max_seeding_time = Number($("max_seeding_time_value").value);
                 if (isNaN(max_seeding_time) || (max_seeding_time < 0) || (max_seeding_time > 525600)) {
                     alert("QBT_TR(Seeding time limit must be between 0 and 525600 minutes.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2815,11 +2886,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             }
             settings["max_seeding_time_enabled"] = $("max_seeding_time_checkbox").checked;
             settings["max_seeding_time"] = max_seeding_time;
-            settings["max_ratio_act"] = $("max_ratio_act").value.toInt();
+            settings["max_ratio_act"] = Number($("max_ratio_act").value);
 
             let max_inactive_seeding_time = -1;
             if ($("max_inactive_seeding_time_checkbox").checked) {
-                max_inactive_seeding_time = $("max_inactive_seeding_time_value").value.toInt();
+                max_inactive_seeding_time = Number($("max_inactive_seeding_time_value").value);
                 if (isNaN(max_inactive_seeding_time) || (max_inactive_seeding_time < 0) || (max_inactive_seeding_time > 525600)) {
                     alert("QBT_TR(Seeding time limit must be between 0 and 525600 minutes.)QBT_TR[CONTEXT=HttpServer]");
                     return;
@@ -2827,11 +2898,13 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             }
             settings["max_inactive_seeding_time_enabled"] = $("max_inactive_seeding_time_checkbox").checked;
             settings["max_inactive_seeding_time"] = max_inactive_seeding_time;
-            settings["max_ratio_act"] = $("max_ratio_act").value.toInt();
+            settings["max_ratio_act"] = Number($("max_ratio_act").value);
 
             // Add trackers
             settings["add_trackers_enabled"] = $("add_trackers_checkbox").checked;
             settings["add_trackers"] = $("add_trackers_textarea").value;
+            settings["add_trackers_from_url_enabled"] = $("addTrackersFromURLCheckbox").checked;
+            settings["add_trackers_url"] = $("addTrackersURL").value;
 
             // RSS Tab
             settings["rss_processing_enabled"] = $("enable_fetching_rss_feeds_checkbox").checked;
@@ -2843,14 +2916,10 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["rss_smart_episode_filters"] = $("rss_filter_textarea").value;
 
             // WebUI tab
-            // Language
-            settings["locale"] = $("locale_select").value;
-            settings["performance_warning"] = $("performanceWarning").checked;
-
             // HTTP Server
             settings["web_ui_domain_list"] = $("webui_domain_textarea").value;
             const web_ui_address = $("webui_address_value").value.toString();
-            const web_ui_port = $("webui_port_value").value.toInt();
+            const web_ui_port = Number($("webui_port_value").value);
             if (isNaN(web_ui_port) || (web_ui_port < 1) || (web_ui_port > 65535)) {
                 alert("QBT_TR(The port used for the WebUI must be between 1 and 65535.)QBT_TR[CONTEXT=HttpServer]");
                 return;
@@ -3005,14 +3074,14 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             // Send it to qBT
             window.parent.qBittorrent.Cache.preferences.set({
                 data: settings,
-                onFailure: function() {
+                onFailure: () => {
                     alert("QBT_TR(Unable to save program preferences, qBittorrent is probably unreachable.)QBT_TR[CONTEXT=HttpServer]");
-                    window.parent.qBittorrent.Client.closeWindows();
+                    window.parent.qBittorrent.Client.closeWindow(document.getElementById("preferencesPage"));
                 },
-                onSuccess: function() {
+                onSuccess: () => {
                     // Close window
                     window.parent.location.reload();
-                    window.parent.qBittorrent.Client.closeWindows();
+                    window.parent.qBittorrent.Client.closeWindow(document.getElementById("preferencesPage"));
                 }
             });
         };

@@ -10,6 +10,7 @@
     --color-text-white: hsl(0deg 0% 100%);
     --color-text-disabled: hsl(0deg 0% 60%);
     --color-text-default: hsl(0deg 0% 33%);
+    --color-background-primary: hsl(0deg 0% 100%);
     --color-background-blue: hsl(210deg 65% 55%);
     --color-background-popup: hsl(0deg 0% 100%);
     --color-background-default: hsl(0deg 0% 94%);
@@ -19,37 +20,46 @@
     --color-icon-hover: brightness(0) invert(100%) sepia(100%) saturate(0%)
         hue-rotate(108deg) brightness(104%) contrast(104%);
 
-    color-scheme: light dark;
-}
+    & #torrentTrackersTableDiv tr {
+        --color-tracker-disabled: hsl(240deg 4% 46%);
+        --color-tracker-not-contacted: hsl(32deg 95% 44%);
+        --color-tracker-working: hsl(142deg 76% 36%);
+        --color-tracker-updating: hsl(210deg 100% 55%);
+        --color-tracker-not-working: hsl(0deg 100% 65%);
+    }
 
-/* Light corrections */
-@media (prefers-color-scheme: light) {
-    :root {
+    &:not(.dark) {
         color-scheme: light;
     }
-}
 
-/* Dark corrections */
-@media (prefers-color-scheme: dark) {
-    :root {
+    &.dark {
         --color-accent-blue: hsl(210deg 42% 48%);
         --color-text-blue: hsl(210deg 88.1% 73.5%);
         --color-text-orange: hsl(26deg 65% 70%);
         --color-text-default: hsl(0deg 0% 90%);
+        --color-background-primary: hsl(0deg 0% 7%);
         --color-background-blue: hsl(210deg 42% 48%);
         --color-background-popup: hsl(0deg 0% 20%);
         --color-background-default: hsl(0deg 0% 25%);
         --color-background-hover: hsl(26deg 50% 55%);
         --color-border-default: hsl(0deg 0% 33%);
 
-        color-scheme: dark;
-    }
+        & #torrentTrackersTableDiv tr {
+            --color-tracker-disabled: hsl(240deg 6% 83%);
+            --color-tracker-not-contacted: hsl(39deg 100% 72%);
+            --color-tracker-working: hsl(142deg 69% 58%);
+            --color-tracker-updating: hsl(210deg 88.1% 73.5%);
+            --color-tracker-not-working: hsl(0deg 100% 71%);
+        }
 
-    #rssButtonBar img,
-    #startSearchButton img,
-    #manageSearchPlugins img {
-        filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(1%)
-            hue-rotate(156deg) brightness(106%) contrast(101%);
+        color-scheme: dark;
+
+        #rssButtonBar img,
+        #startSearchButton img,
+        #manageSearchPlugins img {
+            filter: brightness(0) saturate(100%) invert(100%) sepia(0%)
+                saturate(1%) hue-rotate(156deg) brightness(106%) contrast(101%);
+        }
     }
 }
 
@@ -83,8 +93,21 @@ ol {
     list-style: none;
 }
 
+/* Scrollbars */
+
+@supports (scrollbar-width: auto) and (selector(::-webkit-scrollbar)) {
+    :root[slick-uniqueid], /* targets iframe mocha dialogs */
+    .dynamicTableDiv,
+    .mochaContentWrapper,
+    .panel,
+    #rssDetailsView {
+        scrollbar-width: thin;
+    }
+}
+
 /* Forms */
 
+input[type="search"],
 input[type="text"],
 input[type="number"],
 input[type="password"],
@@ -126,11 +149,17 @@ button:disabled {
 /* Structure */
 
 body {
+    background-color: var(--color-background-primary);
     color: var(--color-text-default);
     font-family: Arial, Helvetica, sans-serif;
     font-size: 12px;
     line-height: 1.5;
     text-align: left;
+}
+
+/* targets dialog windows loaded via iframes */
+body:not(:has(#desktop)) {
+    background-color: var(--color-background-popup);
 }
 
 .aside {
@@ -276,6 +305,14 @@ a.propButton img {
 
 .scrollableMenu {
     overflow: hidden auto;
+}
+
+.propertiesTabContent {
+    height: 100%;
+
+    > div {
+        height: 100%;
+    }
 }
 
 /* context menu specific */
@@ -467,13 +504,13 @@ a.propButton img {
 #torrentsFilterInput {
     background-color: var(--color-background-default);
     background-image: url("../images/edit-find.svg");
-    background-position: left;
+    background-position: 2px;
     background-repeat: no-repeat;
     background-size: 1.5em;
     border: 1px solid var(--color-border-default);
     border-radius: 3px;
-    min-width: 160px;
-    padding: 2px 12px 2px 25px;
+    min-width: 170px;
+    padding: 2px 2px 2px 25px;
 }
 
 #torrentsFilterRegexBox {
@@ -487,6 +524,7 @@ a.propButton img {
     background-size: 1.5em;
     border: 1px solid var(--color-border-default);
     border-radius: 4px;
+    cursor: pointer;
     display: inline-block;
     height: 26px;
     margin-bottom: -9px;
@@ -518,7 +556,7 @@ a.propButton img {
 
 #torrentFilesFilterInput {
     background-image: url("../images/edit-find.svg");
-    background-position: left;
+    background-position: 1px;
     background-repeat: no-repeat;
     background-size: 1.5em;
     margin-top: -1px;
@@ -699,6 +737,22 @@ td.generalLabel {
     padding: 2px;
 }
 
+#propProgressWrapper {
+    align-items: center;
+    display: flex;
+    height: auto;
+    margin: 5px 2px;
+
+    & > span:not(:first-child, :empty) {
+        margin-left: 6px;
+        min-width: 3.5em;
+    }
+
+    & #progress {
+        flex: 1;
+    }
+}
+
 .piecesbarWrapper {
     position: relative;
     width: 100%;
@@ -830,10 +884,6 @@ td.statusBarSeparator {
 
 .green {
     color: var(--color-text-green);
-}
-
-.searchPluginsTableRow {
-    cursor: pointer;
 }
 
 #torrentFilesTableDiv .dynamicTable tr.nonAlt:hover {

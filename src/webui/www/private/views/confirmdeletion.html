@@ -59,9 +59,9 @@
         rememberButton.addEventListener("click", (e) => {
             window.qBittorrent.Cache.preferences.set({
                 data: {
-                    "delete_torrent_content_files": deleteCB.checked
+                    delete_torrent_content_files: deleteCB.checked
                 },
-                onSuccess: function() {
+                onSuccess: () => {
                     prefDeleteContentFiles = deleteCB.checked;
                     setRememberBtnEnabled(false);
                 }
@@ -69,7 +69,7 @@
         });
 
         cancelButton.focus();
-        cancelButton.addEventListener("click", (e) => { window.qBittorrent.Client.closeWindows(); });
+        cancelButton.addEventListener("click", (e) => { window.qBittorrent.Client.closeWindow(document.getElementById("confirmDeletionPage")); });
 
         confirmButton.addEventListener("click", (e) => {
             // Some torrents might be removed when waiting for user input, so refetch the torrent list
@@ -77,23 +77,24 @@
                 ? torrentsTable.getFilteredTorrentsHashes(selectedStatus, selectedCategory, selectedTag, selectedTracker)
                 : torrentsTable.selectedRowsIds();
 
-            new Request({
-                url: "api/v2/torrents/delete",
-                method: "post",
-                data: {
-                    "hashes": hashes.join("|"),
-                    "deleteFiles": deleteCB.checked
-                },
-                onSuccess: function() {
+            fetch("api/v2/torrents/delete", {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        hashes: hashes.join("|"),
+                        deleteFiles: deleteCB.checked
+                    })
+                })
+                .then((response) => {
+                    if (!response.ok) {
+                        alert("QBT_TR(Unable to delete torrents.)QBT_TR[CONTEXT=HttpServer]");
+                        return;
+                    }
+
                     torrentsTable.deselectAll();
                     updateMainData();
                     updatePropertiesPanel();
-                    window.qBittorrent.Client.closeWindows();
-                },
-                onFailure: function() {
-                    alert("QBT_TR(Unable to delete torrents.)QBT_TR[CONTEXT=HttpServer]");
-                },
-            }).send();
+                    window.qBittorrent.Client.closeWindow(document.getElementById("confirmDeletionPage"));
+                });
         });
     })();
 </script>

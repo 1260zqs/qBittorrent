@@ -237,6 +237,12 @@ namespace BitTorrent
         virtual Path finishedTorrentExportDirectory() const = 0;
         virtual void setFinishedTorrentExportDirectory(const Path &path) = 0;
 
+        virtual bool isAddTrackersFromURLEnabled() const = 0;
+        virtual void setAddTrackersFromURLEnabled(bool enabled) = 0;
+        virtual QString additionalTrackersURL() const = 0;
+        virtual void setAdditionalTrackersURL(const QString &url) = 0;
+        virtual QString additionalTrackersFromURL() const = 0;
+
         virtual int globalDownloadSpeedLimit() const = 0;
         virtual void setGlobalDownloadSpeedLimit(int limit) = 0;
         virtual int globalUploadSpeedLimit() const = 0;
@@ -467,6 +473,9 @@ namespace BitTorrent
         virtual void decreaseTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
         virtual void topTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
         virtual void bottomTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
+
+        virtual QString lastExternalIPv4Address() const = 0;
+        virtual QString lastExternalIPv6Address() const = 0;
 
     signals:
         void startupProgressUpdated(int progress);

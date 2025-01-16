@@ -116,6 +116,7 @@ const QString KEY_PROP_SSL_CERTIFICATE = u"ssl_certificate"_s;
 const QString KEY_PROP_SSL_PRIVATEKEY = u"ssl_private_key"_s;
 const QString KEY_PROP_SSL_DHPARAMS = u"ssl_dh_params"_s;
 const QString KEY_PROP_HAS_METADATA = u"has_metadata"_s;
+const QString KEY_PROP_PROGRESS = u"progress"_s;
 
 
 // File keys
@@ -503,7 +504,8 @@ void TorrentsController::propertiesAction()
         {KEY_PROP_SAVE_PATH, torrent->savePath().toString()},
         {KEY_PROP_DOWNLOAD_PATH, torrent->downloadPath().toString()},
         {KEY_PROP_COMMENT, torrent->comment()},
-        {KEY_PROP_HAS_METADATA, torrent->hasMetadata()}
+        {KEY_PROP_HAS_METADATA, torrent->hasMetadata()},
+        {KEY_PROP_PROGRESS, torrent->progress()}
     };
 
     setResult(ret);
@@ -792,6 +794,7 @@ void TorrentsController::addAction()
     const bool skipChecking = parseBool(params()[u"skip_checking"_s]).value_or(false);
     const bool seqDownload = parseBool(params()[u"sequentialDownload"_s]).value_or(false);
     const bool firstLastPiece = parseBool(params()[u"firstLastPiecePrio"_s]).value_or(false);
+    const bool addForced = parseBool(params()[u"forced"_s]).value_or(false);
     const std::optional<bool> addToQueueTop = parseBool(params()[u"addToTopOfQueue"_s]);
     const std::optional<bool> addStopped = parseBool(params()[u"stopped"_s]);
     const QString savepath = params()[u"savepath"_s].trimmed();
@@ -829,7 +832,7 @@ void TorrentsController::addAction()
         .downloadPath = Path(downloadPath),
         .sequential = seqDownload,
         .firstLastPiecePriority = firstLastPiece,
-        .addForced = false,
+        .addForced = addForced,
         .addToQueueTop = addToQueueTop,
         .addStopped = addStopped,
         .stopCondition = stopCondition,

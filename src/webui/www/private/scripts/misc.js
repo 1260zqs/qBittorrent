@@ -32,7 +32,6 @@ window.qBittorrent ??= {};
 window.qBittorrent.Misc ??= (() => {
     const exports = () => {
         return {
-            genHash: genHash,
             getHost: getHost,
             createDebounceHandler: createDebounceHandler,
             friendlyUnit: friendlyUnit,
@@ -47,24 +46,15 @@ window.qBittorrent.Misc ??= (() => {
             toFixedPointString: toFixedPointString,
             containsAllTerms: containsAllTerms,
             sleep: sleep,
+            downloadFile: downloadFile,
             // variables
             FILTER_INPUT_DELAY: 400,
             MAX_ETA: 8640000
         };
     };
 
-    const genHash = function(string) {
-        // origins:
-        // https://stackoverflow.com/a/8831937
-        // https://gist.github.com/hyamamoto/fd435505d29ebfa3d9716fd2be8d42f0
-        let hash = 0;
-        for (let i = 0; i < string.length; ++i)
-            hash = ((Math.imul(hash, 31) + string.charCodeAt(i)) | 0);
-        return hash;
-    };
-
     // getHost emulate the GUI version `QString getHost(const QString &url)`
-    const getHost = function(url) {
+    const getHost = (url) => {
         // We want the hostname.
         // If failed to parse the domain, original input should be returned
 
@@ -102,7 +92,7 @@ window.qBittorrent.Misc ??= (() => {
     /*
      * JS counterpart of the function in src/misc.cpp
      */
-    const friendlyUnit = function(value, isSpeed) {
+    const friendlyUnit = (value, isSpeed) => {
         const units = [
             "QBT_TR(B)QBT_TR[CONTEXT=misc]",
             "QBT_TR(KiB)QBT_TR[CONTEXT=misc]",
@@ -122,14 +112,14 @@ window.qBittorrent.Misc ??= (() => {
             ++i;
         }
 
-        function friendlyUnitPrecision(sizeUnit) {
+        const friendlyUnitPrecision = (sizeUnit) => {
             if (sizeUnit <= 2) // KiB, MiB
                 return 1;
             else if (sizeUnit === 3) // GiB
                 return 2;
             else // TiB, PiB, EiB
                 return 3;
-        }
+        };
 
         let ret;
         if (i === 0) {
@@ -150,7 +140,7 @@ window.qBittorrent.Misc ??= (() => {
     /*
      * JS counterpart of the function in src/misc.cpp
      */
-    const friendlyDuration = function(seconds, maxCap = -1) {
+    const friendlyDuration = (seconds, maxCap = -1) => {
         if ((seconds < 0) || ((seconds >= maxCap) && (maxCap >= 0)))
             return "∞";
         if (seconds === 0)
@@ -173,7 +163,7 @@ window.qBittorrent.Misc ??= (() => {
         return "QBT_TR(%1y %2d)QBT_TR[CONTEXT=misc]".replace("%1", Math.floor(years)).replace("%2", Math.floor(days));
     };
 
-    const friendlyPercentage = function(value) {
+    const friendlyPercentage = (value) => {
         let percentage = (value * 100).round(1);
         if (isNaN(percentage) || (percentage < 0))
             percentage = 0;
@@ -182,19 +172,19 @@ window.qBittorrent.Misc ??= (() => {
         return percentage.toFixed(1) + "%";
     };
 
-    const friendlyFloat = function(value, precision) {
+    const friendlyFloat = (value, precision) => {
         return parseFloat(value).toFixed(precision);
     };
 
     /*
      * JS counterpart of the function in src/misc.cpp
      */
-    const parseHtmlLinks = function(text) {
+    const parseHtmlLinks = (text) => {
         const exp = /(\b(https?|ftp|file):\/\/[-\w+&@#/%?=~|!:,.;]*[-\w+&@#/%=~|])/gi;
         return text.replace(exp, "<a target='_blank' rel='noopener noreferrer' href='$1'>$1</a>");
     };
 
-    const parseVersion = function(versionString) {
+    const parseVersion = (versionString) => {
         const failure = {
             valid: false
         };
@@ -228,7 +218,7 @@ window.qBittorrent.Misc ??= (() => {
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Collator/Collator#parameters
     const naturalSortCollator = new Intl.Collator(undefined, { numeric: true, usage: "sort" });
 
-    const safeTrim = function(value) {
+    const safeTrim = (value) => {
         try {
             return value.trim();
         }
@@ -239,7 +229,7 @@ window.qBittorrent.Misc ??= (() => {
         }
     };
 
-    const toFixedPointString = function(number, digits) {
+    const toFixedPointString = (number, digits) => {
         // Do not round up number
         const power = Math.pow(10, digits);
         return (Math.floor(power * number) / power).toFixed(digits);
@@ -251,11 +241,11 @@ window.qBittorrent.Misc ??= (() => {
      * @param {Array<String>} terms terms to search for within the text
      * @returns {Boolean} true if all terms match the text, false otherwise
      */
-    const containsAllTerms = function(text, terms) {
+    const containsAllTerms = (text, terms) => {
         const textToSearch = text.toLowerCase();
         return terms.every((term) => {
-            const isTermRequired = (term[0] === "+");
-            const isTermExcluded = (term[0] === "-");
+            const isTermRequired = term.startsWith("+");
+            const isTermExcluded = term.startsWith("-");
             if (isTermRequired || isTermExcluded) {
                 // ignore lonely +/-
                 if (term.length === 1)
@@ -264,7 +254,7 @@ window.qBittorrent.Misc ??= (() => {
                 term = term.substring(1);
             }
 
-            const textContainsTerm = (textToSearch.indexOf(term) !== -1);
+            const textContainsTerm = textToSearch.includes(term);
             return isTermExcluded ? !textContainsTerm : textContainsTerm;
         });
     };
@@ -273,6 +263,35 @@ window.qBittorrent.Misc ??= (() => {
         return new Promise((resolve) => {
             setTimeout(resolve, ms);
         });
+    };
+
+    const downloadFile = async (url, defaultFileName, errorMessage = "QBT_TR(Unable to download file)QBT_TR[CONTEXT=HttpServer]") => {
+        try {
+            const response = await fetch(url, { method: "GET" });
+            if (!response.ok) {
+                alert(errorMessage);
+                return;
+            }
+
+            const blob = await response.blob();
+            const fileNamePrefix = "attachment; filename=";
+            const fileNameHeader = response.headers.get("content-disposition");
+            let fileName = defaultFileName;
+            if (fileNameHeader.startsWith(fileNamePrefix)) {
+                fileName = fileNameHeader.substring(fileNamePrefix.length);
+                if (fileName.startsWith("\"") && fileName.endsWith("\""))
+                    fileName = fileName.slice(1, -1);
+            }
+
+            const link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            link.remove();
+        }
+        catch (error) {
+            alert(errorMessage);
+        }
     };
 
     return exports();
