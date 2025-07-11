@@ -35,10 +35,12 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPalette>
 #include <QStandardItemModel>
 #include <QUrl>
 
+#include "base/logger.h"
 #include "base/preferences.h"
 #include "base/search/searchdownloadhandler.h"
 #include "base/search/searchhandler.h"
@@ -82,10 +84,11 @@ namespace
     }
 }
 
-SearchJobWidget::SearchJobWidget(SearchHandler *searchHandler, IGUIApplication *app, QWidget *parent)
+SearchJobWidget::SearchJobWidget(const QString &id, IGUIApplication *app, QWidget *parent)
     : GUIApplicationComponent(app, parent)
-    , m_ui {new Ui::SearchJobWidget}
     , m_nameFilteringMode {u"Search/FilteringMode"_s}
+    , m_id {id}
+    , m_ui {new Ui::SearchJobWidget}
 {
     m_ui->setupUi(this);
 
@@ -151,9 +154,6 @@ SearchJobWidget::SearchJobWidget(SearchHandler *searchHandler, IGUIApplication *
     connect(header(), &QHeaderView::sortIndicatorChanged, this, &SearchJobWidget::saveSettings);
 
     fillFilterComboBoxes();
-    setStatusTip(statusText(m_status));
-
-    assignSearchHandler(searchHandler);
 
     m_lineEditSearchResultsFilter = new LineEdit(this);
     m_lineEditSearchResultsFilter->setPlaceholderText(tr("Filter search results..."));
@@ -186,19 +186,42 @@ SearchJobWidget::SearchJobWidget(SearchHandler *searchHandler, IGUIApplication *
     connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, &SearchJobWidget::onUIThemeChanged);
 }
 
+SearchJobWidget::SearchJobWidget(const QString &id, const QString &searchPattern
+        , const QList<SearchResult> &searchResults, IGUIApplication *app, QWidget *parent)
+    : SearchJobWidget(id, app, parent)
+{
+    m_searchPattern = searchPattern;
+    m_proxyModel->setNameFilter(m_searchPattern);
+    updateFilter();
+
+    appendSearchResults(searchResults);
+}
+
+SearchJobWidget::SearchJobWidget(const QString &id, SearchHandler *searchHandler, IGUIApplication *app, QWidget *parent)
+    : SearchJobWidget(id, app, parent)
+{
+    assignSearchHandler(searchHandler);
+}
+
 SearchJobWidget::~SearchJobWidget()
 {
     saveSettings();
     delete m_ui;
 }
 
+QString SearchJobWidget::id() const
+{
+    return m_id;
+}
+
 QString SearchJobWidget::searchPattern() const
 {
-    Q_ASSERT(m_searchHandler);
-    if (!m_searchHandler) [[unlikely]]
-        return {};
+    return m_searchPattern;
+}
 
-    return m_searchHandler->pattern();
+QList<SearchResult> SearchJobWidget::searchResults() const
+{
+    return m_searchResults;
 }
 
 void SearchJobWidget::onItemDoubleClicked(const QModelIndex &index)
@@ -264,6 +287,7 @@ void SearchJobWidget::assignSearchHandler(SearchHandler *searchHandler)
     if (!searchHandler) [[unlikely]]
         return;
 
+    m_searchResults.clear();
     m_searchListModel->removeRows(0, m_searchListModel->rowCount());
     delete m_searchHandler;
 
@@ -273,7 +297,9 @@ void SearchJobWidget::assignSearchHandler(SearchHandler *searchHandler)
     connect(m_searchHandler, &SearchHandler::searchFinished, this, &SearchJobWidget::searchFinished);
     connect(m_searchHandler, &SearchHandler::searchFailed, this, &SearchJobWidget::searchFailed);
 
-    m_proxyModel->setNameFilter(m_searchHandler->pattern());
+    m_searchPattern = m_searchHandler->pattern();
+
+    m_proxyModel->setNameFilter(m_searchPattern);
     updateFilter();
 
     setStatus(Status::Ongoing);
@@ -281,8 +307,7 @@ void SearchJobWidget::assignSearchHandler(SearchHandler *searchHandler)
 
 void SearchJobWidget::cancelSearch()
 {
-    Q_ASSERT(m_searchHandler);
-    if (!m_searchHandler) [[unlikely]]
+    if (!m_searchHandler)
         return;
 
     m_searchHandler->cancelSearch();
@@ -296,15 +321,52 @@ void SearchJobWidget::downloadTorrents(const AddTorrentOption option)
         downloadTorrent(rowIndex, option);
 }
 
-void SearchJobWidget::openTorrentPages() const
+void SearchJobWidget::openTorrentPages()
 {
-    const QModelIndexList rows {m_ui->resultsBrowser->selectionModel()->selectedRows()};
+    const QModelIndexList rows = m_ui->resultsBrowser->selectionModel()->selectedRows();
+    qsizetype emptyLinkCount = 0;
+    qsizetype badLinkCount = 0;
+    QString warningEntryName;
     for (const QModelIndex &rowIndex : rows)
     {
-        const QString descrLink = m_proxyModel->data(
-                    m_proxyModel->index(rowIndex.row(), SearchSortModel::DESC_LINK)).toString();
-        if (!descrLink.isEmpty())
-            QDesktopServices::openUrl(QUrl::fromEncoded(descrLink.toUtf8()));
+        const QString entryName = m_proxyModel->index(rowIndex.row(), SearchSortModel::NAME).data().toString();
+        const QString descrLink = m_proxyModel->index(rowIndex.row(), SearchSortModel::DESC_LINK).data().toString();
+
+        const QUrl descrLinkURL {descrLink};
+        if (descrLinkURL.isEmpty()) [[unlikely]]
+        {
+            if (warningEntryName.isEmpty())
+                warningEntryName = entryName;
+            ++emptyLinkCount;
+        }
+        else if (descrLinkURL.isLocalFile()) [[unlikely]]
+        {
+            if (badLinkCount == 0)
+                warningEntryName = entryName;
+            ++badLinkCount;
+
+            LogMsg(tr("Blocked opening search result description page URL. URL pointing to local file might be malicious behaviour. Name: \"%1\". URL: \"%2\".")
+                    .arg(entryName, descrLink), Log::WARNING);
+        }
+        else [[likely]]
+        {
+            QDesktopServices::openUrl(descrLinkURL);
+        }
+    }
+
+    if (badLinkCount > 0)
+    {
+        QString message = tr("Blocked opening search result description page URL. The following result URL is pointing to local file and it may be malicious behaviour:\n%1").arg(warningEntryName);
+        if (badLinkCount > 1)
+            message.append(u"\n" + tr("There are %1 more results with the same issue.").arg(badLinkCount - 1));
+        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
+    }
+    else if (emptyLinkCount > 0)
+    {
+        QString message = tr("Entry \"%1\" has no description page URL provided.").arg(warningEntryName);
+        if (emptyLinkCount > 1)
+            message.append(u"\n" + tr("There are %1 more entries with the same issue.").arg(emptyLinkCount - 1));
+        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
     }
 }
 
@@ -363,7 +425,7 @@ void SearchJobWidget::downloadTorrent(const QModelIndex &rowIndex, const AddTorr
     }
     else
     {
-        SearchDownloadHandler *downloadHandler = m_searchHandler->manager()->downloadTorrent(engineName, torrentUrl);
+        SearchDownloadHandler *downloadHandler = SearchPluginManager::instance()->downloadTorrent(engineName, torrentUrl);
         connect(downloadHandler, &SearchDownloadHandler::downloadFinished
             , this, [this, option](const QString &source) { addTorrentToSession(source, option); });
         connect(downloadHandler, &SearchDownloadHandler::downloadFinished, downloadHandler, &SearchDownloadHandler::deleteLater);
@@ -605,6 +667,7 @@ void SearchJobWidget::appendSearchResults(const QList<SearchResult> &results)
         setModelData(SearchSortModel::PUB_DATE, QLocale().toString(result.pubDate.toLocalTime(), QLocale::ShortFormat), result.pubDate);
     }
 
+    m_searchResults.append(results);
     updateResultsCount();
 }
 

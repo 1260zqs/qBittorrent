@@ -43,8 +43,10 @@ window.qBittorrent.PropPeers ??= (() => {
     let show_flags = true;
 
     const loadTorrentPeersData = () => {
-        if ($("propPeers").classList.contains("invisible")
-            || $("propertiesPanel_collapseToggle").classList.contains("panel-expand")) {
+        if (document.hidden)
+            return;
+        if (document.getElementById("propPeers").classList.contains("invisible")
+            || document.getElementById("propertiesPanel_collapseToggle").classList.contains("panel-expand")) {
             syncTorrentPeersLastResponseId = 0;
             torrentPeersTable.clear();
             return;
@@ -71,7 +73,7 @@ window.qBittorrent.PropPeers ??= (() => {
 
                 const responseJSON = await response.json();
 
-                $("error_div").textContent = "";
+                document.getElementById("error_div").textContent = "";
                 if (responseJSON) {
                     const full_update = (responseJSON["full_update"] === true);
                     if (full_update)
@@ -137,13 +139,13 @@ window.qBittorrent.PropPeers ??= (() => {
                     icon: "images/qbittorrent-tray.svg",
                     title: "QBT_TR(Add Peers)QBT_TR[CONTEXT=PeersAdditionDialog]",
                     loadMethod: "iframe",
-                    contentURL: "addpeers.html?hash=" + hash,
+                    contentURL: `addpeers.html?hash=${hash}`,
                     scrollbars: false,
                     resizable: false,
                     maximizable: false,
                     paddingVertical: 0,
                     paddingHorizontal: 0,
-                    width: 350,
+                    width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                     height: 260
                 });
             },
@@ -181,13 +183,12 @@ window.qBittorrent.PropPeers ??= (() => {
         }
     });
 
-    new ClipboardJS("#CopyPeerInfo", {
-        text: (trigger) => {
-            return torrentPeersTable.selectedRowsIds().join("\n");
-        }
+    document.getElementById("CopyPeerInfo").addEventListener("click", async (event) => {
+        const text = torrentPeersTable.selectedRowsIds().join("\n");
+        await clipboardCopy(text);
     });
 
-    torrentPeersTable.setup("torrentPeersTableDiv", "torrentPeersTableFixedHeaderDiv", torrentPeersContextMenu);
+    torrentPeersTable.setup("torrentPeersTableDiv", "torrentPeersTableFixedHeaderDiv", torrentPeersContextMenu, true);
 
     return exports();
 })();

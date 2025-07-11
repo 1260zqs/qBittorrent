@@ -33,16 +33,11 @@ window.qBittorrent.PropFiles ??= (() => {
     const exports = () => {
         return {
             normalizePriority: normalizePriority,
-            isDownloadCheckboxExists: isDownloadCheckboxExists,
             createDownloadCheckbox: createDownloadCheckbox,
             updateDownloadCheckbox: updateDownloadCheckbox,
-            isPriorityComboExists: isPriorityComboExists,
             createPriorityCombo: createPriorityCombo,
             updatePriorityCombo: updatePriorityCombo,
             updateData: updateData,
-            collapseIconClicked: collapseIconClicked,
-            expandFolder: expandFolder,
-            collapseFolder: collapseFolder,
             clear: clear
         };
     };
@@ -126,25 +121,20 @@ window.qBittorrent.PropFiles ??= (() => {
         updateGlobalCheckbox();
     };
 
-    const isDownloadCheckboxExists = (id) => {
-        return $("cbPrio" + id) !== null;
-    };
-
     const createDownloadCheckbox = (id, fileId, checked) => {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.id = "cbPrio" + id;
         checkbox.setAttribute("data-id", id);
         checkbox.setAttribute("data-file-id", fileId);
-        checkbox.className = "DownloadedCB";
         checkbox.addEventListener("click", fileCheckboxClicked);
 
         updateCheckbox(checkbox, checked);
         return checkbox;
     };
 
-    const updateDownloadCheckbox = (id, checked) => {
-        const checkbox = $("cbPrio" + id);
+    const updateDownloadCheckbox = (checkbox, id, fileId, checked) => {
+        checkbox.setAttribute("data-id", id);
+        checkbox.setAttribute("data-file-id", fileId);
         updateCheckbox(checkbox, checked);
     };
 
@@ -162,10 +152,6 @@ window.qBittorrent.PropFiles ??= (() => {
         }
     };
 
-    const isPriorityComboExists = (id) => {
-        return $("comboPrio" + id) !== null;
-    };
-
     const createPriorityCombo = (id, fileId, selectedPriority) => {
         const createOption = (priority, isSelected, text) => {
             const option = document.createElement("option");
@@ -176,7 +162,7 @@ window.qBittorrent.PropFiles ??= (() => {
         };
 
         const select = document.createElement("select");
-        select.id = "comboPrio" + id;
+        select.id = `comboPrio${id}`;
         select.setAttribute("data-id", id);
         select.setAttribute("data-file-id", fileId);
         select.classList.add("combo_priority");
@@ -195,8 +181,10 @@ window.qBittorrent.PropFiles ??= (() => {
         return select;
     };
 
-    const updatePriorityCombo = (id, selectedPriority) => {
-        const combobox = $("comboPrio" + id);
+    const updatePriorityCombo = (combobox, id, fileId, selectedPriority) => {
+        combobox.id = `comboPrio${id}`;
+        combobox.setAttribute("data-id", id);
+        combobox.setAttribute("data-file-id", fileId);
         if (Number(combobox.value) !== selectedPriority)
             selectComboboxPriority(combobox, selectedPriority);
     };
@@ -220,7 +208,7 @@ window.qBittorrent.PropFiles ??= (() => {
         const rowIds = [];
         const fileIds = [];
         let priority = FilePriority.Ignored;
-        const checkbox = $("tristate_cb");
+        const checkbox = document.getElementById("tristate_cb");
 
         if (checkbox.state === "checked") {
             setCheckboxUnchecked(checkbox);
@@ -257,10 +245,10 @@ window.qBittorrent.PropFiles ??= (() => {
     };
 
     const updateGlobalCheckbox = () => {
-        const checkbox = $("tristate_cb");
-        if (isAllCheckboxesChecked())
+        const checkbox = document.getElementById("tristate_cb");
+        if (torrentFilesTable.isAllCheckboxesChecked())
             setCheckboxChecked(checkbox);
-        else if (isAllCheckboxesUnchecked())
+        else if (torrentFilesTable.isAllCheckboxesUnchecked())
             setCheckboxUnchecked(checkbox);
         else
             setCheckboxPartial(checkbox);
@@ -281,24 +269,6 @@ window.qBittorrent.PropFiles ??= (() => {
     const setCheckboxPartial = (checkbox) => {
         checkbox.state = "partial";
         checkbox.indeterminate = true;
-    };
-
-    const isAllCheckboxesChecked = () => {
-        const checkboxes = $$("input.DownloadedCB");
-        for (let i = 0; i < checkboxes.length; ++i) {
-            if (!checkboxes[i].checked)
-                return false;
-        }
-        return true;
-    };
-
-    const isAllCheckboxesUnchecked = () => {
-        const checkboxes = $$("input.DownloadedCB");
-        for (let i = 0; i < checkboxes.length; ++i) {
-            if (checkboxes[i].checked)
-                return false;
-        }
-        return true;
     };
 
     const setFilePriority = (ids, fileIds, priority) => {
@@ -324,21 +294,21 @@ window.qBittorrent.PropFiles ??= (() => {
             });
 
         const ignore = (priority === FilePriority.Ignored);
-        ids.forEach((_id) => {
-            torrentFilesTable.setIgnored(_id, ignore);
+        ids.forEach((id) => {
+            torrentFilesTable.setIgnored(id, ignore);
 
-            const combobox = $("comboPrio" + _id);
+            const combobox = document.getElementById(`comboPrio${id}`);
             if (combobox !== null)
                 selectComboboxPriority(combobox, priority);
         });
-
-        torrentFilesTable.updateTable(false);
     };
 
     let loadTorrentFilesDataTimer = -1;
     const loadTorrentFilesData = () => {
-        if ($("propFiles").classList.contains("invisible")
-            || $("propertiesPanel_collapseToggle").classList.contains("panel-expand")) {
+        if (document.hidden)
+            return;
+        if (document.getElementById("propFiles").classList.contains("invisible")
+            || document.getElementById("propertiesPanel_collapseToggle").classList.contains("panel-expand")) {
             // Tab changed, don't do anything
             return;
         }
@@ -378,7 +348,7 @@ window.qBittorrent.PropFiles ??= (() => {
                 else {
                     handleNewTorrentFiles(files);
                     if (loadedNewTorrent)
-                        collapseAllNodes();
+                        torrentFilesTable.collapseAllNodes();
                 }
             })
             .finally(() => {
@@ -397,25 +367,18 @@ window.qBittorrent.PropFiles ??= (() => {
         is_seed = (files.length > 0) ? files[0].is_seed : true;
 
         const rows = files.map((file, index) => {
-            let progress = (file.progress * 100).round(1);
-            if ((progress === 100) && (file.progress < 1))
-                progress = 99.9;
-
             const ignore = (file.priority === FilePriority.Ignored);
-            const checked = (ignore ? TriState.Unchecked : TriState.Checked);
-            const remaining = (ignore ? 0 : (file.size * (1.0 - file.progress)));
             const row = {
                 fileId: index,
-                checked: checked,
+                checked: (ignore ? TriState.Unchecked : TriState.Checked),
                 fileName: file.name,
                 name: window.qBittorrent.Filesystem.fileName(file.name),
                 size: file.size,
-                progress: progress,
+                progress: window.qBittorrent.Misc.toFixedPointString((file.progress * 100), 1),
                 priority: normalizePriority(file.priority),
-                remaining: remaining,
+                remaining: (ignore ? 0 : (file.size * (1 - file.progress))),
                 availability: file.availability
             };
-
             return row;
         });
 
@@ -491,29 +454,6 @@ window.qBittorrent.PropFiles ??= (() => {
             torrentFilesTable.reselectRows(selectedFiles);
     };
 
-    const collapseIconClicked = (event) => {
-        const id = event.getAttribute("data-id");
-        const node = torrentFilesTable.getNode(id);
-        const isCollapsed = (event.parentElement.getAttribute("data-collapsed") === "true");
-
-        if (isCollapsed)
-            expandNode(node);
-        else
-            collapseNode(node);
-    };
-
-    const expandFolder = (id) => {
-        const node = torrentFilesTable.getNode(id);
-        if (node.isFolder)
-            expandNode(node);
-    };
-
-    const collapseFolder = (id) => {
-        const node = torrentFilesTable.getNode(id);
-        if (node.isFolder)
-            collapseNode(node);
-    };
-
     const filesPriorityMenuClicked = (priority) => {
         const selectedRows = torrentFilesTable.selectedRowsIds();
         if (selectedRows.length === 0)
@@ -522,9 +462,8 @@ window.qBittorrent.PropFiles ??= (() => {
         const rowIds = [];
         const fileIds = [];
         selectedRows.forEach((rowId) => {
-            const elem = $("comboPrio" + rowId);
             rowIds.push(rowId);
-            fileIds.push(elem.getAttribute("data-file-id"));
+            fileIds.push(torrentFilesTable.getRowFileId(rowId));
         });
 
         const uniqueRowIds = {};
@@ -558,14 +497,13 @@ window.qBittorrent.PropFiles ??= (() => {
             icon: "images/qbittorrent-tray.svg",
             title: "QBT_TR(Renaming)QBT_TR[CONTEXT=TorrentContentTreeView]",
             loadMethod: "iframe",
-            contentURL: "rename_file.html?hash=" + hash + "&isFolder=" + node.isFolder
-                + "&path=" + encodeURIComponent(path),
+            contentURL: `rename_file.html?hash=${hash}&isFolder=${node.isFolder}&path=${encodeURIComponent(path)}`,
             scrollbars: false,
             resizable: true,
             maximizable: false,
             paddingVertical: 0,
             paddingHorizontal: 0,
-            width: 400,
+            width: window.qBittorrent.Dialog.limitWidthToViewport(400),
             height: 100
         });
     };
@@ -590,7 +528,7 @@ window.qBittorrent.PropFiles ??= (() => {
     };
 
     const torrentFilesContextMenu = new window.qBittorrent.ContextMenu.ContextMenu({
-        targets: "#torrentFilesTableDiv tr",
+        targets: "#torrentFilesTableDiv tbody tr",
         menu: "torrentFilesMenu",
         actions: {
             Rename: (element, ref) => {
@@ -629,9 +567,9 @@ window.qBittorrent.PropFiles ??= (() => {
         }
     });
 
-    torrentFilesTable.setup("torrentFilesTableDiv", "torrentFilesTableFixedHeaderDiv", torrentFilesContextMenu);
+    torrentFilesTable.setup("torrentFilesTableDiv", "torrentFilesTableFixedHeaderDiv", torrentFilesContextMenu, true);
     // inject checkbox into table header
-    const tableHeaders = $$("#torrentFilesTableFixedHeaderDiv .dynamicTableHeader th");
+    const tableHeaders = document.querySelectorAll("#torrentFilesTableFixedHeaderDiv .dynamicTableHeader th");
     if (tableHeaders.length > 0) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -648,10 +586,10 @@ window.qBittorrent.PropFiles ??= (() => {
 
     // listen for changes to torrentFilesFilterInput
     let torrentFilesFilterInputTimer = -1;
-    $("torrentFilesFilterInput").addEventListener("input", () => {
+    document.getElementById("torrentFilesFilterInput").addEventListener("input", (event) => {
         clearTimeout(torrentFilesFilterInputTimer);
 
-        const value = $("torrentFilesFilterInput").value;
+        const value = document.getElementById("torrentFilesFilterInput").value;
         torrentFilesTable.setFilter(value);
 
         torrentFilesFilterInputTimer = setTimeout(() => {
@@ -663,110 +601,11 @@ window.qBittorrent.PropFiles ??= (() => {
             torrentFilesTable.updateTable();
 
             if (value.trim() === "")
-                collapseAllNodes();
+                torrentFilesTable.collapseAllNodes();
             else
-                expandAllNodes();
+                torrentFilesTable.expandAllNodes();
         }, window.qBittorrent.Misc.FILTER_INPUT_DELAY);
     });
-
-    /**
-     * Show/hide a node's row
-     */
-    const _hideNode = (node, shouldHide) => {
-        const span = $("filesTablefileName" + node.rowId);
-        // span won't exist if row has been filtered out
-        if (span === null)
-            return;
-        const rowElem = span.parentElement.parentElement;
-        rowElem.classList.toggle("invisible", shouldHide);
-    };
-
-    /**
-     * Update a node's collapsed state and icon
-     */
-    const _updateNodeState = (node, isCollapsed) => {
-        const span = $("filesTablefileName" + node.rowId);
-        // span won't exist if row has been filtered out
-        if (span === null)
-            return;
-        const td = span.parentElement;
-
-        // store collapsed state
-        td.setAttribute("data-collapsed", isCollapsed);
-
-        // rotate the collapse icon
-        const collapseIcon = td.getElementsByClassName("filesTableCollapseIcon")[0];
-        collapseIcon.classList.toggle("rotate", isCollapsed);
-    };
-
-    const _isCollapsed = (node) => {
-        const span = $("filesTablefileName" + node.rowId);
-        if (span === null)
-            return true;
-
-        const td = span.parentElement;
-        return td.getAttribute("data-collapsed") === "true";
-    };
-
-    const expandNode = (node) => {
-        _collapseNode(node, false, false, false);
-    };
-
-    const collapseNode = (node) => {
-        _collapseNode(node, true, false, false);
-    };
-
-    const expandAllNodes = () => {
-        const root = torrentFilesTable.getRoot();
-        root.children.each((node) => {
-            node.children.each((child) => {
-                _collapseNode(child, false, true, false);
-            });
-        });
-    };
-
-    const collapseAllNodes = () => {
-        const root = torrentFilesTable.getRoot();
-        root.children.each((node) => {
-            node.children.each((child) => {
-                _collapseNode(child, true, true, false);
-            });
-        });
-    };
-
-    /**
-     * Collapses a folder node with the option to recursively collapse all children
-     * @param {FolderNode} node the node to collapse/expand
-     * @param {boolean} shouldCollapse true if the node should be collapsed, false if it should be expanded
-     * @param {boolean} applyToChildren true if the node's children should also be collapsed, recursively
-     * @param {boolean} isChildNode true if the current node is a child of the original node we collapsed/expanded
-     */
-    const _collapseNode = (node, shouldCollapse, applyToChildren, isChildNode) => {
-        if (!node.isFolder)
-            return;
-
-        const shouldExpand = !shouldCollapse;
-        const isNodeCollapsed = _isCollapsed(node);
-        const nodeInCorrectState = ((shouldCollapse && isNodeCollapsed) || (shouldExpand && !isNodeCollapsed));
-        const canSkipNode = (isChildNode && (!applyToChildren || nodeInCorrectState));
-        if (!isChildNode || applyToChildren || !canSkipNode)
-            _updateNodeState(node, shouldCollapse);
-
-        node.children.each((child) => {
-            _hideNode(child, shouldCollapse);
-
-            if (!child.isFolder)
-                return;
-
-            // don't expand children that have been independently collapsed, unless applyToChildren is true
-            const shouldExpandChildren = (shouldExpand && applyToChildren);
-            const isChildCollapsed = _isCollapsed(child);
-            if (!shouldExpandChildren && isChildCollapsed)
-                return;
-
-            _collapseNode(child, shouldCollapse, applyToChildren, true);
-        });
-    };
 
     const clear = () => {
         torrentFilesTable.clear();

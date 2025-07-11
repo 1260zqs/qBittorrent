@@ -26,11 +26,12 @@
     <script defer src="scripts/lib/MooTools-Core-1.6.0-compat-compressed.js"></script>
     <script defer src="scripts/lib/MooTools-More-1.6.0-compat-compressed.js"></script>
     <script defer src="scripts/lib/mocha.min.js"></script>
+    <script defer src="scripts/monkeypatch.js?v=${CACHEID}"></script>
     <script defer src="scripts/cache.js?v=${CACHEID}"></script>
     <script defer src="scripts/localpreferences.js?v=${CACHEID}"></script>
     <script defer src="scripts/color-scheme.js?v=${CACHEID}"></script>
     <script defer src="scripts/mocha-init.js?locale=${LANG}&v=${CACHEID}"></script>
-    <script defer src="scripts/lib/clipboard.min.js"></script>
+    <script defer src="scripts/lib/clipboard-copy.js"></script>
     <script defer src="scripts/filesystem.js?v=${CACHEID}"></script>
     <script defer src="scripts/misc.js?locale=${LANG}&v=${CACHEID}"></script>
     <script defer src="scripts/progressbar.js?v=${CACHEID}"></script>
@@ -41,6 +42,7 @@
     <script defer src="scripts/client.js?locale=${LANG}&v=${CACHEID}"></script>
     <script defer src="scripts/contextmenu.js?locale=${LANG}&v=${CACHEID}"></script>
     <script defer src="scripts/pathAutofill.js?v=${CACHEID}"></script>
+    <script defer src="scripts/statistics.js?v=${CACHEID}"></script>
 </head>
 
 <body>
@@ -93,9 +95,10 @@
                     <li>
                         <a class="returnFalse">QBT_TR(Tools)QBT_TR[CONTEXT=MainWindow]</a>
                         <ul>
+                            <li><a id="torrentCreatorLink"><img class="MyMenuIcon" src="images/torrent-creator.svg" alt="QBT_TR(Torrent Creator)QBT_TR[CONTEXT=MainWindow]" width="16" height="16">QBT_TR(Torrent Creator)QBT_TR[CONTEXT=MainWindow]</a></li>
+                            <li class="divider"><a id="manageCookiesLink"><img class="MyMenuIcon" src="images/browser-cookies.svg" alt="QBT_TR(Manage Cookies...)QBT_TR[CONTEXT=MainWindow]" width="16" height="16">QBT_TR(Manage Cookies...)QBT_TR[CONTEXT=MainWindow]</a></li>
                             <li><a id="preferencesLink"><img class="MyMenuIcon" src="images/configure.svg" alt="QBT_TR(Options...)QBT_TR[CONTEXT=MainWindow]" width="16" height="16">QBT_TR(Options...)QBT_TR[CONTEXT=MainWindow]</a></li>
-                            <li><a id="registerMagnetHandlerLink"><img class="MyMenuIcon" src="images/torrent-magnet.svg" alt="QBT_TR(Register to handle magnet links...)QBT_TR[CONTEXT=HttpServer]" width="16" height="16">QBT_TR(Register to handle magnet links...)QBT_TR[CONTEXT=HttpServer]</a></li>
-                            <li><a id="manageCookiesLink"><img class="MyMenuIcon" src="images/browser-cookies.svg" alt="QBT_TR(Manage Cookies...)QBT_TR[CONTEXT=MainWindow]" width="16" height="16">QBT_TR(Manage Cookies...)QBT_TR[CONTEXT=MainWindow]</a></li>
+                            <li class="divider"><a id="registerMagnetHandlerLink"><img class="MyMenuIcon" src="images/torrent-magnet.svg" alt="QBT_TR(Register to handle magnet links...)QBT_TR[CONTEXT=HttpServer]" width="16" height="16">QBT_TR(Register to handle magnet links...)QBT_TR[CONTEXT=HttpServer]</a></li>
                         </ul>
                     </li>
                     <li>
@@ -110,8 +113,8 @@
             </div>
             <div id="mochaToolbar">
                 &nbsp;&nbsp;
-                <a id="downloadButton"><img class="mochaToolButton" title="QBT_TR(Add Torrent Link...)QBT_TR[CONTEXT=MainWindow]" src="images/insert-link.svg" alt="QBT_TR(Add Torrent Link...)QBT_TR[CONTEXT=MainWindow]" width="24" height="24"></a>
                 <a id="uploadButton"><img class="mochaToolButton" title="QBT_TR(Add Torrent File...)QBT_TR[CONTEXT=MainWindow]" src="images/list-add.svg" alt="QBT_TR(Add Torrent File...)QBT_TR[CONTEXT=MainWindow]" width="24" height="24"></a>
+                <a id="downloadButton"><img class="mochaToolButton" title="QBT_TR(Add Torrent Link...)QBT_TR[CONTEXT=MainWindow]" src="images/insert-link.svg" alt="QBT_TR(Add Torrent Link...)QBT_TR[CONTEXT=MainWindow]" width="24" height="24"></a>
                 <a id="deleteButton"><img class="mochaToolButton" title="QBT_TR(Remove)QBT_TR[CONTEXT=TransferListWidget]" src="images/list-remove.svg" alt="QBT_TR(Remove)QBT_TR[CONTEXT=TransferListWidget]" width="24" height="24"></a>
                 <a id="startButton" class="divider"><img class="mochaToolButton" title="QBT_TR(Start)QBT_TR[CONTEXT=TransferListWidget]" src="images/torrent-start.svg" alt="QBT_TR(Start)QBT_TR[CONTEXT=TransferListWidget]" width="24" height="24"></a>
                 <a id="stopButton"><img class="mochaToolButton" title="QBT_TR(Stop)QBT_TR[CONTEXT=TransferListWidget]" src="images/torrent-stop.svg" alt="QBT_TR(Stop)QBT_TR[CONTEXT=TransferListWidget]" width="24" height="24"></a>
@@ -273,9 +276,9 @@
         <li><a href="#ToggleSelection"><img src="images/edit-rename.svg" alt="QBT_TR(Toggle Selection)QBT_TR[CONTEXT=PropertiesWidget]"> QBT_TR(Toggle Selection)QBT_TR[CONTEXT=PropertiesWidget]</a></li>
     </ul>
     <div id="desktopFooterWrapper">
-        <div id="desktopFooter">
+        <div id="desktopFooter" style="overflow-x: auto; overflow-y: hidden;">
             <span id="error_div"></span>
-            <table style="position: absolute; right: 5px;">
+            <table style="margin-right: 5px; margin-left: auto; width: max-content;">
                 <tbody>
                     <tr>
                         <td id="freeSpaceOnDisk"></td>

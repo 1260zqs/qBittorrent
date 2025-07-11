@@ -100,6 +100,7 @@ ol {
     .dynamicTableDiv,
     .mochaContentWrapper,
     .panel,
+    .scrollableMenu,
     #rssDetailsView {
         scrollbar-width: thin;
     }
@@ -113,6 +114,7 @@ input[type="number"],
 input[type="password"],
 input[type="button"],
 button,
+textarea,
 select {
     border: 1px solid var(--color-border-default);
     border-radius: 3px;
@@ -257,7 +259,7 @@ pre {
 
 hr {
     background-color: var(--color-background-default);
-    border: 0px;
+    border: 0;
     color: var(--color-text-default);
     height: 1px;
     margin-bottom: 6px;
@@ -416,50 +418,10 @@ a.propButton img {
 /* Sliders */
 
 .slider {
-    clear: both;
     font-size: 12px;
     font-weight: bold;
-    margin-bottom: 15px;
+    margin: 4px;
     position: relative;
-    width: 400px;
-}
-
-.sliderWrapper {
-    font-size: 1px;
-    height: 9px;
-    line-height: 1px;
-    position: relative;
-    width: 422px;
-}
-
-.sliderarea {
-    background: #f2f2f2 url("../images/slider-area.gif") repeat-x;
-    border: 1px solid #a3a3a3;
-    border-bottom: 1px solid #ccc;
-    border-left: 1px solid #ccc;
-    font-size: 1px;
-    height: 7px;
-    left: 0;
-    line-height: 1px;
-    overflow: hidden;
-    padding: 0;
-    position: absolute;
-    top: 0;
-    width: 420px;
-}
-
-.sliderknob {
-    background: url("../images/knob.gif") no-repeat;
-    cursor: pointer;
-    font-size: 1px;
-    height: 9px;
-    left: 0;
-    line-height: 1px;
-    overflow: hidden;
-    position: absolute;
-    top: 0;
-    width: 19px;
-    z-index: 2;
 }
 
 .update {
@@ -499,6 +461,10 @@ a.propButton img {
 #torrentsFilterToolbar {
     display: inline-block;
     vertical-align: top;
+}
+
+#torrentsFilterToolbar.invisible {
+    display: none;
 }
 
 #torrentsFilterInput {
@@ -573,7 +539,7 @@ label.tristate {
     display: block;
     float: left;
     height: 13px;
-    margin: 0.15em 8px 5px 0px;
+    margin: 0.15em 8px 5px 0;
     overflow: hidden;
     text-indent: -999em;
     width: 13px;
@@ -753,19 +719,6 @@ td.generalLabel {
     }
 }
 
-.piecesbarWrapper {
-    position: relative;
-    width: 100%;
-}
-
-.piecesbarCanvas {
-    height: 100%;
-    image-rendering: pixelated;
-    inset: 0;
-    position: absolute;
-    width: 100%;
-}
-
 #watched_folders_tab {
     border-collapse: collapse;
 }
@@ -785,20 +738,20 @@ td.generalLabel {
 
 .select-watched-folder-editable select {
     border: none;
-    bottom: 0px;
-    left: 0px;
+    bottom: 0;
+    left: 0;
     padding: 0;
     position: absolute;
-    top: 0px;
+    top: 0;
     width: 158px;
 }
 
 .select-watched-folder-editable input {
     border: none;
-    left: 0px;
+    left: 0;
     padding: 0;
     position: absolute;
-    top: 0px;
+    top: 0;
     width: 140px;
 }
 

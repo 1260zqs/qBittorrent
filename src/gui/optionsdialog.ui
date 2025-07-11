@@ -74,6 +74,11 @@
       </item>
       <item>
        <property name="text">
+        <string>Search</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
         <string>RSS</string>
        </property>
       </item>
@@ -132,8 +137,8 @@
               <property name="title">
                <string>Interface</string>
               </property>
-              <layout class="QGridLayout" name="UISettingsBoxLayout">
-               <item row="0" column="0" colspan="3">
+              <layout class="QVBoxLayout" name="UISettingsBoxLayout">
+               <item>
                 <widget class="QLabel" name="labelRestartRequired">
                  <property name="font">
                   <font>
@@ -145,72 +150,80 @@
                  </property>
                 </widget>
                </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="labelLanguage">
-                 <property name="text">
-                  <string>Language:</string>
-                 </property>
-                </widget>
+               <item>
+                <layout class="QHBoxLayout" name="layoutLanguage">
+                 <item>
+                  <widget class="QLabel" name="labelLanguage">
+                   <property name="text">
+                    <string>Language:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="comboLanguage"/>
+                 </item>
+                 <item>
+                  <spacer name="spacerLanguage">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>200</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
                </item>
-               <item row="1" column="1">
-                <widget class="QComboBox" name="comboLanguage"/>
+               <item>
+                <layout class="QGridLayout" name="layoutStyle">
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="labelStyle">
+                   <property name="text">
+                    <string>Style:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QComboBox" name="comboStyle"/>
+                 </item>
+                 <item row="0" column="2">
+                  <widget class="QLabel" name="labelStyleHint">
+                   <property name="font">
+                    <font>
+                     <italic>true</italic>
+                    </font>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="labelColorScheme">
+                   <property name="text">
+                    <string>Color scheme:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QComboBox" name="comboColorScheme"/>
+                 </item>
+                 <item row="1" column="2">
+                  <spacer name="spacerColorScheme">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
                </item>
-               <item row="1" column="2">
-                <spacer name="spacerLanguage">
-                 <property name="orientation">
-                  <enum>Qt::Orientation::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>200</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="2" column="0">
-                <widget class="QLabel" name="labelStyle">
-                 <property name="text">
-                  <string>Style:</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="1">
-                <widget class="QComboBox" name="comboStyle"/>
-               </item>
-               <item row="2" column="2">
-                <widget class="QLabel" name="labelStyleHint">
-                 <property name="font">
-                  <font>
-                   <italic>true</italic>
-                  </font>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="0">
-                <widget class="QLabel" name="labelColorScheme">
-                 <property name="text">
-                  <string>Color scheme:</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="1">
-                <widget class="QComboBox" name="comboColorScheme"/>
-               </item>
-               <item row="3" column="2">
-                <spacer name="spacerColorScheme">
-                 <property name="orientation">
-                  <enum>Qt::Orientation::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="4" column="0" colspan="3">
+               <item>
                 <widget class="QGroupBox" name="checkUseCustomTheme">
                  <property name="title">
                   <string>Use custom UI Theme</string>
@@ -232,15 +245,21 @@
                  </layout>
                 </widget>
                </item>
-               <item row="5" column="0" colspan="2">
+               <item>
                 <widget class="QCheckBox" name="checkUseSystemIcon">
                  <property name="text">
                   <string>Use icons from system theme</string>
                  </property>
                 </widget>
                </item>
-               <item row="6" column="0" colspan="2">
+               <item>
                 <widget class="QPushButton" name="buttonCustomizeUITheme">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
                  <property name="text">
                   <string>Customize UI Theme...</string>
                  </property>
@@ -815,6 +834,13 @@
              </widget>
             </item>
             <item>
+             <widget class="QCheckBox" name="checkBoxFreeDiskSpaceStatusBar">
+              <property name="text">
+               <string>Show free disk space in status bar</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QCheckBox" name="checkBoxExternalIPStatusBar">
               <property name="text">
                <string>Show external IP in status bar</string>
@@ -1019,7 +1045,7 @@
                <item>
                 <widget class="QGroupBox" name="duplicateTorrentGroup">
                  <property name="title">
-                  <string>When duplicate torrent is being added</string>
+                  <string>When adding a duplicate torrent</string>
                  </property>
                  <layout class="QVBoxLayout" name="duplicateTorrentBoxLayout">
                   <item>
@@ -1035,7 +1061,7 @@
                   <item>
                    <widget class="QCheckBox" name="checkConfirmMergeTrackers">
                     <property name="text">
-                     <string>Ask for merging trackers when torrent is being added manually</string>
+                     <string>Ask to merge trackers for manually added torrent</string>
                     </property>
                     <property name="checked">
                      <bool>true</bool>
@@ -2065,14 +2091,14 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </layout>
                </item>
                <item>
-                <widget class="QLabel" name="labelProxyTypeIncompatible">
+                <widget class="QLabel" name="labelProxyTypeUnavailable">
                  <property name="font">
                   <font>
                    <italic>true</italic>
                   </font>
                  </property>
                  <property name="text">
-                  <string>Some options are incompatible with the chosen proxy type!</string>
+                  <string>Some functions are unavailable with the chosen proxy type!</string>
                  </property>
                 </widget>
                </item>
@@ -2132,7 +2158,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   <item>
                    <widget class="QLabel" name="label_23">
                     <property name="text">
-                     <string>Info: The password is saved unencrypted</string>
+                     <string>Note: The password is saved unencrypted</string>
                     </property>
                    </widget>
                   </item>
@@ -3016,9 +3042,6 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                  <property name="enabled">
                   <bool>false</bool>
                  </property>
-                 <property name="maximum">
-                  <double>9998.000000000000000</double>
-                 </property>
                  <property name="singleStep">
                   <double>0.050000000000000</double>
                  </property>
@@ -3200,6 +3223,116 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                <size>
                 <width>20</width>
                 <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabSearchPage">
+       <layout class="QVBoxLayout" name="searchPageLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QScrollArea" name="searchPageScrollArea">
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <widget class="QWidget" name="searchPageScrollAreaWidgetContents">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>521</width>
+             <height>541</height>
+            </rect>
+           </property>
+           <layout class="QVBoxLayout" name="searchPageScrollAreaWidgetContentsLayout">
+            <item>
+             <widget class="QGroupBox" name="groupSearchUI">
+              <property name="title">
+               <string>Search UI</string>
+              </property>
+              <layout class="QVBoxLayout" name="groupSearchUILayout">
+               <item>
+                <widget class="QGroupBox" name="groupStoreOpenedTabs">
+                 <property name="title">
+                  <string>Store opened tabs</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="groupStoreOpenedTabsLayout">
+                  <item>
+                   <widget class="QCheckBox" name="checkStoreTabsSearchResults">
+                    <property name="text">
+                     <string>Also store search results</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="searchHistoryLayout">
+                 <item>
+                  <widget class="QLabel" name="searchHistoryLengthLabel">
+                   <property name="text">
+                    <string>History length</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QSpinBox" name="searchHistoryLengthSpinBox">
+                   <property name="maximum">
+                    <number>99</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="searchHistoryLengthSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="searchPageScrollAreaSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>422</height>
                </size>
               </property>
              </spacer>

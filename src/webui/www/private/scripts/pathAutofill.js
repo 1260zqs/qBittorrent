@@ -42,7 +42,7 @@ window.qBittorrent.pathAutofill ??= (() => {
 
     const showInputSuggestions = (inputElement, names) => {
         const datalist = document.createElement("datalist");
-        datalist.id = inputElement.id + "Suggestions";
+        datalist.id = `${inputElement.id}Suggestions`;
         for (const name of names) {
             const option = document.createElement("option");
             option.value = name;
@@ -76,16 +76,16 @@ window.qBittorrent.pathAutofill ??= (() => {
     function attachPathAutofill() {
         const directoryInputs = document.querySelectorAll(".pathDirectory:not(.pathAutoFillInitialized)");
         for (const input of directoryInputs) {
-            input.addEventListener("input", function() { showPathSuggestions(this, "dirs"); });
+            input.addEventListener("input", function(event) { showPathSuggestions(this, "dirs"); });
             input.classList.add("pathAutoFillInitialized");
         }
 
         const fileInputs = document.querySelectorAll(".pathFile:not(.pathAutoFillInitialized)");
         for (const input of fileInputs) {
-            input.addEventListener("input", function() { showPathSuggestions(this, "all"); });
+            input.addEventListener("input", function(event) { showPathSuggestions(this, "all"); });
             input.classList.add("pathAutoFillInitialized");
         }
-    };
+    }
 
     return exports();
 })();

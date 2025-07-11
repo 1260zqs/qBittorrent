@@ -15,41 +15,41 @@ window.qBittorrent.MultiRename ??= (() => {
         Extension: "Extension"
     };
 
-    const RenameFiles = new Class({
-        hash: "",
-        selectedFiles: [],
-        matchedFiles: [],
+    class RenameFiles {
+        hash = "";
+        selectedFiles = [];
+        matchedFiles = [];
 
         // Search Options
-        _inner_search: "",
+        #inner_search = "";
         setSearch(val) {
-            this._inner_search = val;
-            this._inner_update();
+            this.#inner_search = val;
+            this.#inner_update();
             this.onChanged(this.matchedFiles);
-        },
-        useRegex: false,
-        matchAllOccurrences: false,
-        caseSensitive: false,
+        }
+        useRegex = false;
+        matchAllOccurrences = false;
+        caseSensitive = false;
 
         // Replacement Options
-        _inner_replacement: "",
+        #inner_replacement = "";
         setReplacement(val) {
-            this._inner_replacement = val;
-            this._inner_update();
+            this.#inner_replacement = val;
+            this.#inner_update();
             this.onChanged(this.matchedFiles);
-        },
-        appliesTo: AppliesTo.FilenameExtension,
-        includeFiles: true,
-        includeFolders: false,
-        replaceAll: false,
-        fileEnumerationStart: 0,
+        }
+        appliesTo = AppliesTo.FilenameExtension;
+        includeFiles = true;
+        includeFolders = false;
+        replaceAll = false;
+        fileEnumerationStart = 0;
 
-        onChanged: (rows) => {},
-        onInvalidRegex: (err) => {},
-        onRenamed: (rows) => {},
-        onRenameError: (response) => {},
+        onChanged(rows) {}
+        onInvalidRegex(err) {}
+        onRenamed(rows) {}
+        onRenameError(response) {}
 
-        _inner_update: function() {
+        #inner_update() {
             const findMatches = (regex, str) => {
                 let result;
                 let count = 0;
@@ -119,7 +119,7 @@ window.qBittorrent.MultiRename ??= (() => {
             this.matchedFiles = [];
 
             // Ignore empty searches
-            if (!this._inner_search)
+            if (!this.#inner_search)
                 return;
 
             // Setup regex flags
@@ -130,11 +130,11 @@ window.qBittorrent.MultiRename ??= (() => {
                 regexFlags += "i";
 
             // Setup regex search
-            const regexEscapeExp = new RegExp(/[/\-\\^$*+?.()|[\]{}]/g);
-            const standardSearch = new RegExp(this._inner_search.replace(regexEscapeExp, "\\$&"), regexFlags);
+            const regexEscapeExp = /[/\-\\^$*+?.()|[\]{}]/g;
+            const standardSearch = new RegExp(this.#inner_search.replace(regexEscapeExp, "\\$&"), regexFlags);
             let regexSearch;
             try {
-                regexSearch = new RegExp(this._inner_search, regexFlags);
+                regexSearch = new RegExp(this.#inner_search, regexFlags);
             }
             catch (err) {
                 if (this.useRegex) {
@@ -159,7 +159,7 @@ window.qBittorrent.MultiRename ??= (() => {
                 // Get file extension and reappend the "." (only when the file has an extension)
                 let fileExtension = window.qBittorrent.Filesystem.fileExtension(row.original);
                 if (fileExtension)
-                    fileExtension = "." + fileExtension;
+                    fileExtension = `.${fileExtension}`;
 
                 const fileNameWithoutExt = row.original.slice(0, row.original.lastIndexOf(fileExtension));
 
@@ -185,7 +185,7 @@ window.qBittorrent.MultiRename ??= (() => {
                 let renamed = row.original;
                 for (let i = matches.length - 1; i >= 0; --i) {
                     const match = matches[i];
-                    let replacement = this._inner_replacement;
+                    let replacement = this.#inner_replacement;
                     // Replace numerical groups
                     for (let g = 0; g < match.length; ++g) {
                         const group = match[g];
@@ -215,9 +215,9 @@ window.qBittorrent.MultiRename ??= (() => {
                 ++fileEnumeration;
                 this.matchedFiles.push(row);
             }
-        },
+        }
 
-        rename: async function() {
+        async rename() {
             if (!this.matchedFiles || (this.matchedFiles.length === 0) || !this.hash) {
                 this.onRenamed([]);
                 return;
@@ -269,12 +269,13 @@ window.qBittorrent.MultiRename ??= (() => {
                 await _inner_rename(0);
             }
             this.onRenamed(replaced);
-        },
-        update: function() {
-            this._inner_update();
+        }
+
+        update() {
+            this.#inner_update();
             this.onChanged(this.matchedFiles);
         }
-    });
+    }
 
     return exports();
 })();

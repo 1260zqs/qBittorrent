@@ -60,12 +60,15 @@
 
     #rssTorrentDetailsName {
         flex-shrink: 0;
+        font-weight: bold;
         background-color: var(--color-background-blue);
         padding: 0;
         color: var(--color-text-white);
     }
 
-    #rssTorrentDetailsDate {
+    #rssTorrentDetailsAuthor,
+    #rssTorrentDetailsDate,
+    #rssTorrentDetailsLink {
         flex-shrink: 1;
         background-color: var(--color-background-default);
     }
@@ -215,10 +218,10 @@
             const pref = window.parent.qBittorrent.Cache.preferences.get();
 
             if (!pref.rss_processing_enabled)
-                $("rssFetchingDisabled").classList.remove("invisible");
+                document.getElementById("rssFetchingDisabled").classList.remove("invisible");
 
             const rssFeedContextMenu = new window.qBittorrent.ContextMenu.RssFeedContextMenu({
-                targets: "#rssFeedTableDiv tr",
+                targets: "#rssFeedTableDiv tbody tr",
                 menu: "rssFeedMenu",
                 actions: {
                     update: (el) => {
@@ -229,7 +232,7 @@
                                 if ((row.full_data.dataPath.slice(0, selectedPath.length) === selectedPath) && (row.full_data.dataUid !== ""))
                                     feedsToUpdate.add(row);
                             }
-                        };
+                        }
                         feedsToUpdate.forEach((feed) => refreshFeed(feed.full_data.dataUid));
                     },
                     markRead: markSelectedAsRead,
@@ -260,13 +263,13 @@
                 }
             });
 
-            rssFeedContextMenu.addTarget($("rssFeedTableDiv"));
+            rssFeedContextMenu.addTarget(document.getElementById("rssFeedTableDiv"));
             // deselect feed when clicking on empty part of table
-            $("rssFeedTableDiv").addEventListener("click", (e) => {
+            document.getElementById("rssFeedTableDiv").addEventListener("click", (e) => {
                 rssFeedTable.deselectAll();
                 rssFeedTable.deselectRow();
             });
-            $("rssFeedTableDiv").addEventListener("contextmenu", (e) => {
+            document.getElementById("rssFeedTableDiv").addEventListener("contextmenu", (e) => {
                 if (e.target.nodeName === "DIV") {
                     rssFeedTable.deselectAll();
                     rssFeedTable.deselectRow();
@@ -274,21 +277,20 @@
                 }
             });
 
-            new ClipboardJS("#CopyFeedURL", {
-                text: () => {
-                    let joined = "";
-                    for (const rowID of rssFeedTable.selectedRows) {
-                        const row = rssFeedTable.getRow(rowID);
-                        if (row.full_data.dataUid !== "")
-                            joined += `${row.full_data.dataUrl}\n`;
-                    }
-                    return joined.slice(0, -1);
+            document.getElementById("CopyFeedURL").addEventListener("click", async (event) => {
+                let joined = "";
+                for (const rowID of rssFeedTable.selectedRows) {
+                    const row = rssFeedTable.getRow(rowID);
+                    if (row.full_data.dataUid !== "")
+                        joined += `${row.full_data.dataUrl}\n`;
                 }
+                await clipboardCopy(joined.slice(0, -1));
             });
+
             rssFeedTable.setup("rssFeedTableDiv", "rssFeedFixedHeaderDiv", rssFeedContextMenu);
 
             const rssArticleContextMenu = new window.qBittorrent.ContextMenu.RssArticleContextMenu({
-                targets: "#rssArticleTableDiv tr",
+                targets: "#rssArticleTableDiv tbody tr",
                 menu: "rssArticleMenu",
                 actions: {
                     Download: (el) => {
@@ -343,11 +345,11 @@
                 icon: "images/qbittorrent-tray.svg",
                 title: "QBT_TR(Please type a RSS feed URL)QBT_TR[CONTEXT=RSSWidget]",
                 loadMethod: "iframe",
-                contentURL: "newfeed.html?path=" + encodeURIComponent(path),
+                contentURL: `newfeed.html?path=${encodeURIComponent(path)}`,
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
-                width: 350,
+                width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                 height: 100
             });
         };
@@ -371,11 +373,11 @@
                 icon: "images/qbittorrent-tray.svg",
                 title: "QBT_TR(Please choose a folder name)QBT_TR[CONTEXT=RSSWidget]",
                 loadMethod: "iframe",
-                contentURL: "newfolder.html?path=" + encodeURIComponent(path),
+                contentURL: `newfolder.html?path=${encodeURIComponent(path)}`,
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
-                width: 350,
+                width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                 height: 100
             });
         };
@@ -417,39 +419,91 @@
                     });
                 });
 
-            $("rssDetailsView").getChildren().each(c => c.destroy());
+            clearDetails();
             rssArticleTable.updateTable(false);
+        };
+
+        const clearDetails = () => {
+            [...document.getElementById("rssDetailsView").children].forEach((el) => { el.remove(); });
         };
 
         const showDetails = (feedUid, articleID) => {
             markArticleAsRead(pathByFeedId.get(feedUid), articleID);
-            $("rssDetailsView").getChildren().each(c => c.destroy());
-            const article = feedData[feedUid].filter((article) => article.id === articleID)[0];
-            if (article) {
-                $("rssDetailsView").append((() => {
-                    const torrentName = document.createElement("p");
-                    torrentName.textContent = article.title;
-                    torrentName.id = "rssTorrentDetailsName";
-                    return torrentName;
-                })());
-                $("rssDetailsView").append((() => {
-                    const torrentDate = document.createElement("div");
-                    torrentDate.id = "rssTorrentDetailsDate";
+            clearDetails();
 
-                    const torrentDateDesc = document.createElement("b");
-                    torrentDateDesc.textContent = "QBT_TR(Date: )QBT_TR[CONTEXT=RSSWidget]";
-                    torrentDate.append(torrentDateDesc);
+            const article = feedData[feedUid].find((article) => (article.id === articleID));
+            if (article === undefined)
+                return;
 
-                    const torrentDateData = document.createElement("span");
-                    torrentDateData.textContent = new Date(article.date).toLocaleString();
-                    torrentDate.append(torrentDateData);
+            const detailsView = document.getElementById("rssDetailsView");
 
-                    return torrentDate;
-                })());
+            const articleTitle = article.title;
+            if (articleTitle !== undefined) {
+                const torrentName = document.createElement("p");
+                torrentName.textContent = articleTitle;
+                torrentName.id = "rssTorrentDetailsName";
+
+                detailsView.append(torrentName);
+            }
+
+            const articleDate = article.date;
+            if (articleDate !== undefined) {
+                const torrentDate = document.createElement("div");
+                torrentDate.id = "rssTorrentDetailsDate";
+
+                const torrentDateDesc = document.createElement("b");
+                torrentDateDesc.textContent = "QBT_TR(Date: )QBT_TR[CONTEXT=RSSWidget]";
+                torrentDate.append(torrentDateDesc);
+
+                const torrentDateData = document.createElement("span");
+                torrentDateData.textContent = new Date(articleDate).toLocaleString();
+                torrentDate.append(torrentDateData);
+
+                detailsView.append(torrentDate);
+            }
+
+            const articleAuthor = article.author;
+            if (articleAuthor !== undefined) {
+                const divElement = document.createElement("div");
+                divElement.id = "rssTorrentDetailsAuthor";
+
+                const header = document.createElement("b");
+                header.textContent = "QBT_TR(Author: )QBT_TR[CONTEXT=RSSWidget]";
+                divElement.append(header);
+
+                const span = document.createElement("span");
+                span.textContent = articleAuthor;
+                divElement.append(span);
+
+                detailsView.append(divElement);
+            }
+
+            const articleLink = article.link;
+            if (articleLink !== undefined) {
+                const divElement = document.createElement("div");
+                divElement.id = "rssTorrentDetailsLink";
+
+                const anchorElement = document.createElement("a");
+                anchorElement.href = articleLink;
+                anchorElement.textContent = "QBT_TR(Open link)QBT_TR[CONTEXT=RSSWidget]";
+                anchorElement.target = "_blank";
+                anchorElement.style = "font-weight: bold;";
+                divElement.append(anchorElement);
+
+                detailsView.append(divElement);
+            }
+
+            const articleDescription = article.description;
+            if (articleDescription !== undefined) {
+                const rootColor = document.documentElement.classList.contains("dark") ? "class='dark'" : "";
+
                 // Place in iframe with sandbox attribute to prevent js execution
-                const torrentDescription = document.createRange().createContextualFragment('<iframe sandbox id="rssDescription"></iframe>');
-                $("rssDetailsView").append(torrentDescription);
-                document.getElementById("rssDescription").srcdoc = '<html><head><link rel="stylesheet" type="text/css" href="css/style.css"></head><body>' + article.description + "</body></html>";
+                const iframeElement = document.createElement("iframe");
+                iframeElement.id = "rssDescription";
+                iframeElement.sandbox = "allow-same-origin"; // allowed to get parent css
+                iframeElement.srcdoc = `<html ${rootColor}><head><meta charset="utf-8"><link rel="stylesheet" type="text/css" href="css/style.css?v=${CACHEID}"></head><body>${articleDescription}</body></html>`;
+
+                detailsView.append(iframeElement);
             }
         };
 
@@ -475,7 +529,7 @@
                             if (!Object.hasOwn(current, child))
                                 continue;
 
-                            const currentFullName = fullName ? (fullName + "\\" + child) : child;
+                            const currentFullName = fullName ? `${fullName}\\${child}` : child;
                             if (current[child].uid !== undefined) {
                                 current[child].name = child;
                                 current[child].isFolder = false;
@@ -733,11 +787,11 @@
                 icon: "images/qbittorrent-tray.svg",
                 title: "QBT_TR(Please choose a new name for this RSS feed)QBT_TR[CONTEXT=RSSWidget]",
                 loadMethod: "iframe",
-                contentURL: "rename_feed.html?oldPath=" + encodeURIComponent(oldPath),
+                contentURL: `rename_feed.html?oldPath=${encodeURIComponent(oldPath)}`,
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
-                width: 350,
+                width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                 height: 100
             });
         };
@@ -757,7 +811,7 @@
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
-                width: 350,
+                width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                 height: 100
             });
         };
@@ -769,11 +823,11 @@
                 icon: "images/qbittorrent-tray.svg",
                 title: "QBT_TR(Deletion confirmation)QBT_TR[CONTEXT=RSSWidget]",
                 loadMethod: "iframe",
-                contentURL: "confirmfeeddeletion.html?paths=" + encodeURIComponent(encodedPaths.join("|")),
+                contentURL: `confirmfeeddeletion.html?paths=${encodeURIComponent(encodedPaths.join("|"))}`,
                 scrollbars: false,
                 resizable: false,
                 maximizable: false,
-                width: 350,
+                width: window.qBittorrent.Dialog.limitWidthToViewport(350),
                 height: 70
             });
         };
@@ -893,8 +947,8 @@
                 loadMethod: "xhr",
                 contentURL: "views/rssDownloader.html",
                 maximizable: false,
-                width: loadWindowWidth(id, 800),
-                height: loadWindowHeight(id, 650),
+                width: loadWindowWidth(id, 800, false),
+                height: loadWindowHeight(id, 650, false),
                 onResize: window.qBittorrent.Misc.createDebounceHandler(500, (e) => {
                     saveWindowSize(id);
                 }),

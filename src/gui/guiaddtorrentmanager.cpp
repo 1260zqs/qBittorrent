@@ -33,7 +33,6 @@
 
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrentdescriptor.h"
-#include "base/logger.h"
 #include "base/net/downloadmanager.h"
 #include "base/preferences.h"
 #include "base/torrentfileguard.h"
@@ -80,6 +79,15 @@ GUIAddTorrentManager::GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Ses
     : GUIApplicationComponent(app, session, parent)
 {
     connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
+}
+
+GUIAddTorrentManager::~GUIAddTorrentManager()
+{
+    for (AddNewTorrentDialog *dialog : asConst(m_dialogs))
+    {
+        dialog->disconnect(this);
+        dialog->reject();
+    }
 }
 
 bool GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params, const AddTorrentOption option)
@@ -225,12 +233,19 @@ bool GUIAddTorrentManager::processTorrent(const QString &source
     if (!hasMetadata)
         btSession()->downloadMetadata(torrentDescr);
 
+#ifdef Q_OS_MACOS
+    const bool attached = false;
+#else
+    const bool attached = Preferences::instance()->isAddNewTorrentDialogAttached();
+#endif
+
     // By not setting a parent to the "AddNewTorrentDialog", all those dialogs
     // will be displayed on top and will not overlap with the main window.
-    auto *dlg = new AddNewTorrentDialog(torrentDescr, params, nullptr);
+    auto *dlg = new AddNewTorrentDialog(torrentDescr, params, (attached ? app()->mainWindow() : nullptr));
     // Qt::Window is required to avoid showing only two dialog on top (see #12852).
     // Also improves the general convenience of adding multiple torrents.
-    dlg->setWindowFlags(Qt::Window);
+    if (!attached)
+        dlg->setWindowFlags(Qt::Window);
 
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     m_dialogs[infoHash] = dlg;

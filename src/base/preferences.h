@@ -119,6 +119,8 @@ public:
     void setHideZeroComboValues(int n);
     bool isStatusbarDisplayed() const;
     void setStatusbarDisplayed(bool displayed);
+    bool isStatusbarFreeDiskSpaceDisplayed() const;
+    void setStatusbarFreeDiskSpaceDisplayed(bool displayed);
     bool isStatusbarExternalIPDisplayed() const;
     void setStatusbarExternalIPDisplayed(bool displayed);
     bool isToolbarDisplayed() const;
@@ -171,6 +173,14 @@ public:
     // Search
     bool isSearchEnabled() const;
     void setSearchEnabled(bool enabled);
+
+    // Search UI
+    int searchHistoryLength() const;
+    void setSearchHistoryLength(int length);
+    bool storeOpenedSearchTabs() const;
+    void setStoreOpenedSearchTabs(bool enabled);
+    bool storeOpenedSearchTabResults() const;
+    void setStoreOpenedSearchTabResults(bool enabled);
 
     // HTTP Server
     bool isWebUIEnabled() const;
@@ -427,6 +437,8 @@ public:
     void setAddNewTorrentDialogTopLevel(bool value);
     int addNewTorrentDialogSavePathHistoryLength() const;
     void setAddNewTorrentDialogSavePathHistoryLength(int value);
+    bool isAddNewTorrentDialogAttached() const;
+    void setAddNewTorrentDialogAttached(bool attached);
 
 public slots:
     void setStatusFilterState(bool checked);

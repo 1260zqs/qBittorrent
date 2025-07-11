@@ -131,8 +131,8 @@ void SearchController::stopAction()
 
     const int id = params()[u"id"_s].toInt();
 
-    const auto iter = m_searchHandlers.find(id);
-    if (iter == m_searchHandlers.end())
+    const auto iter = m_searchHandlers.constFind(id);
+    if (iter == m_searchHandlers.cend())
         throw APIError(APIErrorType::NotFound);
 
     const std::shared_ptr<SearchHandler> &searchHandler = iter.value();
@@ -142,6 +142,8 @@ void SearchController::stopAction()
         searchHandler->cancelSearch();
         m_activeSearches.remove(id);
     }
+
+    setResult(QString());
 }
 
 void SearchController::statusAction()
@@ -176,8 +178,8 @@ void SearchController::resultsAction()
     int limit = params()[u"limit"_s].toInt();
     int offset = params()[u"offset"_s].toInt();
 
-    const auto iter = m_searchHandlers.find(id);
-    if (iter == m_searchHandlers.end())
+    const auto iter = m_searchHandlers.constFind(id);
+    if (iter == m_searchHandlers.cend())
         throw APIError(APIErrorType::NotFound);
 
     const std::shared_ptr<SearchHandler> &searchHandler = iter.value();
@@ -207,14 +209,16 @@ void SearchController::deleteAction()
 
     const int id = params()[u"id"_s].toInt();
 
-    const auto iter = m_searchHandlers.find(id);
-    if (iter == m_searchHandlers.end())
+    const auto iter = m_searchHandlers.constFind(id);
+    if (iter == m_searchHandlers.cend())
         throw APIError(APIErrorType::NotFound);
 
     const std::shared_ptr<SearchHandler> &searchHandler = iter.value();
     searchHandler->cancelSearch();
     m_activeSearches.remove(id);
     m_searchHandlers.erase(iter);
+
+    setResult(QString());
 }
 
 void SearchController::downloadTorrentAction()
@@ -238,6 +242,8 @@ void SearchController::downloadTorrentAction()
             downloadHandler->deleteLater();
         });
     }
+
+    setResult(QString());
 }
 
 void SearchController::pluginsAction()
@@ -253,6 +259,8 @@ void SearchController::installPluginAction()
     const QStringList sources = params()[u"sources"_s].split(u'|');
     for (const QString &source : sources)
         SearchPluginManager::instance()->installPlugin(source);
+
+    setResult(QString());
 }
 
 void SearchController::uninstallPluginAction()
@@ -262,6 +270,8 @@ void SearchController::uninstallPluginAction()
     const QStringList names = params()[u"names"_s].split(u'|');
     for (const QString &name : names)
         SearchPluginManager::instance()->uninstallPlugin(name.trimmed());
+
+    setResult(QString());
 }
 
 void SearchController::enablePluginAction()
@@ -273,6 +283,8 @@ void SearchController::enablePluginAction()
 
     for (const QString &name : names)
         SearchPluginManager::instance()->enablePlugin(name.trimmed(), enable);
+
+    setResult(QString());
 }
 
 void SearchController::updatePluginsAction()
@@ -282,6 +294,8 @@ void SearchController::updatePluginsAction()
     connect(pluginManager, &SearchPluginManager::checkForUpdatesFinished, this, &SearchController::checkForUpdatesFinished);
     connect(pluginManager, &SearchPluginManager::checkForUpdatesFailed, this, &SearchController::checkForUpdatesFailed);
     pluginManager->checkForUpdates();
+
+    setResult(QString());
 }
 
 void SearchController::checkForUpdatesFinished(const QHash<QString, PluginVersion> &updateInfo)
@@ -300,6 +314,8 @@ void SearchController::checkForUpdatesFinished(const QHash<QString, PluginVersio
         LogMsg(tr("Updating plugin %1").arg(pluginName), Log::INFO);
         pluginManager->updatePlugin(pluginName);
     }
+
+    setResult(QString());
 }
 
 void SearchController::checkForUpdatesFailed(const QString &reason)

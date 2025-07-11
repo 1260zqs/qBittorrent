@@ -46,11 +46,13 @@ AuthController::AuthController(ISessionManager *sessionManager, IApplication *ap
 void AuthController::setUsername(const QString &username)
 {
     m_username = username;
+    setResult(QString());
 }
 
 void AuthController::setPasswordHash(const QByteArray &passwordHash)
 {
     m_passwordHash = passwordHash;
+    setResult(QString());
 }
 
 void AuthController::loginAction()
@@ -96,15 +98,16 @@ void AuthController::loginAction()
     }
 }
 
-void AuthController::logoutAction() const
+void AuthController::logoutAction()
 {
     m_sessionManager->sessionEnd();
+    setResult(QString());
 }
 
 bool AuthController::isBanned() const
 {
-    const auto failedLoginIter = m_clientFailedLogins.find(m_sessionManager->clientId());
-    if (failedLoginIter == m_clientFailedLogins.end())
+    const auto failedLoginIter = m_clientFailedLogins.constFind(m_sessionManager->clientId());
+    if (failedLoginIter == m_clientFailedLogins.cend())
         return false;
 
     bool isBanned = (failedLoginIter->banTimer.remainingTime() >= 0);

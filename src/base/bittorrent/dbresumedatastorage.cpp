@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2021-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2021-2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -86,7 +86,7 @@ namespace
     class StoreJob final : public Job
     {
     public:
-        StoreJob(const TorrentID &torrentID, const LoadTorrentParams &resumeData);
+        StoreJob(const TorrentID &torrentID, LoadTorrentParams resumeData);
         void perform(QSqlDatabase db) override;
 
     private:
@@ -217,80 +217,6 @@ namespace
     {
         return u"%1 %2"_s.arg(quoted(column.name), definition);
     }
-
-    LoadTorrentParams parseQueryResultRow(const QSqlQuery &query)
-    {
-        LoadTorrentParams resumeData;
-        resumeData.name = query.value(DB_COLUMN_NAME.name).toString();
-        resumeData.category = query.value(DB_COLUMN_CATEGORY.name).toString();
-        const QString tagsData = query.value(DB_COLUMN_TAGS.name).toString();
-        if (!tagsData.isEmpty())
-        {
-            const QStringList tagList = tagsData.split(u',');
-            resumeData.tags.insert(tagList.cbegin(), tagList.cend());
-        }
-        resumeData.hasFinishedStatus = query.value(DB_COLUMN_HAS_SEED_STATUS.name).toBool();
-        resumeData.firstLastPiecePriority = query.value(DB_COLUMN_HAS_OUTER_PIECES_PRIORITY.name).toBool();
-        resumeData.ratioLimit = query.value(DB_COLUMN_RATIO_LIMIT.name).toInt() / 1000.0;
-        resumeData.seedingTimeLimit = query.value(DB_COLUMN_SEEDING_TIME_LIMIT.name).toInt();
-        resumeData.inactiveSeedingTimeLimit = query.value(DB_COLUMN_INACTIVE_SEEDING_TIME_LIMIT.name).toInt();
-        resumeData.shareLimitAction = Utils::String::toEnum<ShareLimitAction>(
-                query.value(DB_COLUMN_SHARE_LIMIT_ACTION.name).toString(), ShareLimitAction::Default);
-        resumeData.contentLayout = Utils::String::toEnum<TorrentContentLayout>(
-                query.value(DB_COLUMN_CONTENT_LAYOUT.name).toString(), TorrentContentLayout::Original);
-        resumeData.operatingMode = Utils::String::toEnum<TorrentOperatingMode>(
-                query.value(DB_COLUMN_OPERATING_MODE.name).toString(), TorrentOperatingMode::AutoManaged);
-        resumeData.stopped = query.value(DB_COLUMN_STOPPED.name).toBool();
-        resumeData.stopCondition = Utils::String::toEnum(
-                query.value(DB_COLUMN_STOP_CONDITION.name).toString(), Torrent::StopCondition::None);
-        resumeData.sslParameters =
-        {
-            .certificate = QSslCertificate(query.value(DB_COLUMN_SSL_CERTIFICATE.name).toByteArray()),
-            .privateKey = Utils::SSLKey::load(query.value(DB_COLUMN_SSL_PRIVATE_KEY.name).toByteArray()),
-            .dhParams = query.value(DB_COLUMN_SSL_DH_PARAMS.name).toByteArray()
-        };
-
-        resumeData.savePath = Profile::instance()->fromPortablePath(
-                    Path(query.value(DB_COLUMN_TARGET_SAVE_PATH.name).toString()));
-        resumeData.useAutoTMM = resumeData.savePath.isEmpty();
-        if (!resumeData.useAutoTMM)
-        {
-            resumeData.downloadPath = Profile::instance()->fromPortablePath(
-                        Path(query.value(DB_COLUMN_DOWNLOAD_PATH.name).toString()));
-        }
-
-        const QByteArray bencodedResumeData = query.value(DB_COLUMN_RESUMEDATA.name).toByteArray();
-        const auto *pref = Preferences::instance();
-        const int bdecodeDepthLimit = pref->getBdecodeDepthLimit();
-        const int bdecodeTokenLimit = pref->getBdecodeTokenLimit();
-
-        lt::error_code ec;
-        const lt::bdecode_node resumeDataRoot = lt::bdecode(bencodedResumeData, ec
-                , nullptr, bdecodeDepthLimit, bdecodeTokenLimit);
-
-        lt::add_torrent_params &p = resumeData.ltAddTorrentParams;
-
-        p = lt::read_resume_data(resumeDataRoot, ec);
-
-        if (const QByteArray bencodedMetadata = query.value(DB_COLUMN_METADATA.name).toByteArray()
-                ; !bencodedMetadata.isEmpty())
-        {
-            const lt::bdecode_node torentInfoRoot = lt::bdecode(bencodedMetadata, ec
-                    , nullptr, bdecodeDepthLimit, bdecodeTokenLimit);
-            p.ti = std::make_shared<lt::torrent_info>(torentInfoRoot, ec);
-        }
-
-        p.save_path = Profile::instance()->fromPortablePath(Path(fromLTString(p.save_path)))
-                .toString().toStdString();
-
-        if (p.flags & lt::torrent_flags::stop_when_ready)
-        {
-            p.flags &= ~lt::torrent_flags::stop_when_ready;
-            resumeData.stopCondition = Torrent::StopCondition::FilesChecked;
-        }
-
-        return resumeData;
-    }
 }
 
 namespace BitTorrent
@@ -305,7 +231,7 @@ namespace BitTorrent
         void run() override;
         void requestInterruption();
 
-        void store(const TorrentID &id, const LoadTorrentParams &resumeData);
+        void store(const TorrentID &id, LoadTorrentParams resumeData);
         void remove(const TorrentID &id);
         void storeQueue(const QList<TorrentID> &queue);
 
@@ -401,9 +327,9 @@ BitTorrent::LoadResumeDataResult BitTorrent::DBResumeDataStorage::load(const Tor
     return parseQueryResultRow(query);
 }
 
-void BitTorrent::DBResumeDataStorage::store(const TorrentID &id, const LoadTorrentParams &resumeData) const
+void BitTorrent::DBResumeDataStorage::store(const TorrentID &id, LoadTorrentParams resumeData) const
 {
-    m_asyncWorker->store(id, resumeData);
+    m_asyncWorker->store(id, std::move(resumeData));
 }
 
 void BitTorrent::DBResumeDataStorage::remove(const BitTorrent::TorrentID &id) const
@@ -688,6 +614,90 @@ void BitTorrent::DBResumeDataStorage::enableWALMode() const
         throw RuntimeError(tr("WAL mode is probably unsupported due to filesystem limitations."));
 }
 
+LoadResumeDataResult DBResumeDataStorage::parseQueryResultRow(const QSqlQuery &query) const
+{
+    LoadTorrentParams resumeData;
+    resumeData.name = query.value(DB_COLUMN_NAME.name).toString();
+    resumeData.category = query.value(DB_COLUMN_CATEGORY.name).toString();
+    const QString tagsData = query.value(DB_COLUMN_TAGS.name).toString();
+    if (!tagsData.isEmpty())
+    {
+        const QStringList tagList = tagsData.split(u',');
+        resumeData.tags.insert(tagList.cbegin(), tagList.cend());
+    }
+    resumeData.hasFinishedStatus = query.value(DB_COLUMN_HAS_SEED_STATUS.name).toBool();
+    resumeData.firstLastPiecePriority = query.value(DB_COLUMN_HAS_OUTER_PIECES_PRIORITY.name).toBool();
+    resumeData.ratioLimit = query.value(DB_COLUMN_RATIO_LIMIT.name).toInt() / 1000.0;
+    resumeData.seedingTimeLimit = query.value(DB_COLUMN_SEEDING_TIME_LIMIT.name).toInt();
+    resumeData.inactiveSeedingTimeLimit = query.value(DB_COLUMN_INACTIVE_SEEDING_TIME_LIMIT.name).toInt();
+    resumeData.shareLimitAction = Utils::String::toEnum<ShareLimitAction>(
+        query.value(DB_COLUMN_SHARE_LIMIT_ACTION.name).toString(), ShareLimitAction::Default);
+    resumeData.contentLayout = Utils::String::toEnum<TorrentContentLayout>(
+        query.value(DB_COLUMN_CONTENT_LAYOUT.name).toString(), TorrentContentLayout::Original);
+    resumeData.operatingMode = Utils::String::toEnum<TorrentOperatingMode>(
+        query.value(DB_COLUMN_OPERATING_MODE.name).toString(), TorrentOperatingMode::AutoManaged);
+    resumeData.stopped = query.value(DB_COLUMN_STOPPED.name).toBool();
+    resumeData.stopCondition = Utils::String::toEnum(
+        query.value(DB_COLUMN_STOP_CONDITION.name).toString(), Torrent::StopCondition::None);
+    resumeData.sslParameters =
+        {
+            .certificate = QSslCertificate(query.value(DB_COLUMN_SSL_CERTIFICATE.name).toByteArray()),
+            .privateKey = Utils::SSLKey::load(query.value(DB_COLUMN_SSL_PRIVATE_KEY.name).toByteArray()),
+            .dhParams = query.value(DB_COLUMN_SSL_DH_PARAMS.name).toByteArray()
+        };
+
+    resumeData.savePath = Profile::instance()->fromPortablePath(
+        Path(query.value(DB_COLUMN_TARGET_SAVE_PATH.name).toString()));
+    resumeData.useAutoTMM = resumeData.savePath.isEmpty();
+    if (!resumeData.useAutoTMM)
+    {
+        resumeData.downloadPath = Profile::instance()->fromPortablePath(
+            Path(query.value(DB_COLUMN_DOWNLOAD_PATH.name).toString()));
+    }
+
+    const QByteArray bencodedResumeData = query.value(DB_COLUMN_RESUMEDATA.name).toByteArray();
+    const auto *pref = Preferences::instance();
+    const int bdecodeDepthLimit = pref->getBdecodeDepthLimit();
+    const int bdecodeTokenLimit = pref->getBdecodeTokenLimit();
+
+    lt::error_code ec;
+    const lt::bdecode_node resumeDataRoot = lt::bdecode(bencodedResumeData, ec, nullptr, bdecodeDepthLimit, bdecodeTokenLimit);
+    if (ec)
+        return nonstd::make_unexpected(tr("Cannot parse resume data: %1").arg(QString::fromStdString(ec.message())));
+
+    lt::add_torrent_params &p = resumeData.ltAddTorrentParams;
+
+    p = lt::read_resume_data(resumeDataRoot, ec);
+    if (ec)
+        return nonstd::make_unexpected(tr("Cannot parse resume data: %1").arg(QString::fromStdString(ec.message())));
+
+    if (const QByteArray bencodedMetadata = query.value(DB_COLUMN_METADATA.name).toByteArray()
+            ; !bencodedMetadata.isEmpty())
+    {
+        const lt::bdecode_node torentInfoRoot = lt::bdecode(bencodedMetadata, ec
+                , nullptr, bdecodeDepthLimit, bdecodeTokenLimit);
+        if (ec)
+            return nonstd::make_unexpected(tr("Cannot parse torrent info: %1").arg(QString::fromStdString(ec.message())));
+
+        p.ti = std::make_shared<lt::torrent_info>(torentInfoRoot, ec);
+        if (ec)
+            return nonstd::make_unexpected(tr("Cannot parse torrent info: %1").arg(QString::fromStdString(ec.message())));
+    }
+
+    p.save_path = Profile::instance()->fromPortablePath(Path(fromLTString(p.save_path)))
+            .toString().toStdString();
+    if (p.save_path.empty())
+        return nonstd::make_unexpected(tr("Corrupted resume data: %1").arg(tr("save_path is invalid")));
+
+    if (p.flags & lt::torrent_flags::stop_when_ready)
+    {
+        p.flags &= ~lt::torrent_flags::stop_when_ready;
+        resumeData.stopCondition = Torrent::StopCondition::FilesChecked;
+    }
+
+    return resumeData;
+}
+
 BitTorrent::DBResumeDataStorage::Worker::Worker(const Path &dbPath, QReadWriteLock &dbLock, QObject *parent)
     : QThread(parent)
     , m_path {dbPath}
@@ -759,9 +769,9 @@ void DBResumeDataStorage::Worker::requestInterruption()
     m_waitCondition.wakeAll();
 }
 
-void BitTorrent::DBResumeDataStorage::Worker::store(const TorrentID &id, const LoadTorrentParams &resumeData)
+void BitTorrent::DBResumeDataStorage::Worker::store(const TorrentID &id, LoadTorrentParams resumeData)
 {
-    addJob(std::make_unique<StoreJob>(id, resumeData));
+    addJob(std::make_unique<StoreJob>(id, std::move(resumeData)));
 }
 
 void BitTorrent::DBResumeDataStorage::Worker::remove(const TorrentID &id)
@@ -787,9 +797,9 @@ namespace
 {
     using namespace BitTorrent;
 
-    StoreJob::StoreJob(const TorrentID &torrentID, const LoadTorrentParams &resumeData)
+StoreJob::StoreJob(const TorrentID &torrentID, LoadTorrentParams resumeData)
         : m_torrentID {torrentID}
-        , m_resumeData {resumeData}
+        , m_resumeData {std::move(resumeData)}
     {
     }
 

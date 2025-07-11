@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2018  Mike Tzou (Chocobo1)
  *
  * This program is free software; you can redistribute it and/or
@@ -30,32 +30,52 @@
 #include "bytearray.h"
 
 #include <QByteArray>
+#include <QByteArrayMatcher>
 #include <QByteArrayView>
 #include <QList>
 
 QList<QByteArrayView> Utils::ByteArray::splitToViews(const QByteArrayView in, const QByteArrayView sep, const Qt::SplitBehavior behavior)
 {
-    if (sep.isEmpty())
-        return {in};
+    if (behavior == Qt::SkipEmptyParts)
+    {
+        if (in.isEmpty())
+            return {};
 
+        if (sep.isEmpty())
+            return {in};
+    }
+    else
+    {
+        if (in.isEmpty())
+        {
+            if (sep.isEmpty())
+                return {{}, {}};
+
+            return {{}};
+        }
+    }
+
+    const QByteArrayMatcher matcher {sep};
     QList<QByteArrayView> ret;
-    ret.reserve((behavior == Qt::KeepEmptyParts)
-                ? (1 + (in.size() / sep.size()))
-                : (1 + (in.size() / (sep.size() + 1))));
-    int head = 0;
+    ret.reserve((behavior == Qt::SkipEmptyParts)
+            ? (1 + (in.size() / (sep.size() + 1)))
+            : (1 + (in.size() / sep.size())));
+    qsizetype head = 0;
     while (head < in.size())
     {
-        int end = in.indexOf(sep, head);
+        qsizetype end = matcher.indexIn(in, head);
         if (end < 0)
             end = in.size();
 
-        // omit empty parts
-        const QByteArrayView part = in.mid(head, (end - head));
+        const QByteArrayView part = in.sliced(head, (end - head));
         if (!part.isEmpty() || (behavior == Qt::KeepEmptyParts))
             ret += part;
 
         head = end + sep.size();
     }
+
+    if ((behavior == Qt::KeepEmptyParts) && (head == in.size()))
+        ret.emplaceBack();
 
     return ret;
 }

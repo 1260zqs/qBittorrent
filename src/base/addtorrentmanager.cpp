@@ -29,6 +29,7 @@
 
 #include "addtorrentmanager.h"
 
+#include "base/bittorrent/addtorrenterror.h"
 #include "base/bittorrent/infohash.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrentdescriptor.h"
@@ -140,7 +141,7 @@ void AddTorrentManager::onSessionTorrentAdded(BitTorrent::Torrent *torrent)
     }
 }
 
-void AddTorrentManager::onSessionAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const QString &reason)
+void AddTorrentManager::onSessionAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const BitTorrent::AddTorrentError &reason)
 {
     if (const QString source = m_sourcesByInfoHash.take(infoHash); !source.isEmpty())
     {
@@ -154,7 +155,7 @@ void AddTorrentManager::onSessionAddTorrentFailed(const BitTorrent::InfoHash &in
 void AddTorrentManager::handleAddTorrentFailed(const QString &source, const QString &reason)
 {
     LogMsg(tr("Failed to add torrent. Source: \"%1\". Reason: \"%2\"").arg(source, reason), Log::WARNING);
-    emit addTorrentFailed(source, reason);
+    emit addTorrentFailed(source, {BitTorrent::AddTorrentError::Other, reason});
 }
 
 void AddTorrentManager::handleDuplicateTorrent(const QString &source
@@ -185,9 +186,9 @@ void AddTorrentManager::handleDuplicateTorrent(const QString &source
         message = tr("Trackers are merged from new source");
     }
 
-    LogMsg(tr("Detected an attempt to add a duplicate torrent. Source: %1. Existing torrent: %2. Result: %3")
-            .arg(source, existingTorrent->name(), message));
-    emit addTorrentFailed(source, message);
+    LogMsg(tr("Detected an attempt to add a duplicate torrent. Source: %1. Existing torrent: \"%2\". Torrent infohash: %3. Result: %4")
+            .arg(source, existingTorrent->name(), existingTorrent->infoHash().toString(), message));
+    emit addTorrentFailed(source, {BitTorrent::AddTorrentError::DuplicateTorrent, message});
 }
 
 void AddTorrentManager::setTorrentFileGuard(const QString &source, std::shared_ptr<TorrentFileGuard> torrentFileGuard)

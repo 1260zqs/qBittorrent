@@ -41,7 +41,10 @@ SearchDownloadHandler::SearchDownloadHandler(const QString &pluginName, const QS
     , m_manager {manager}
     , m_downloadProcess {new QProcess(this)}
 {
-    m_downloadProcess->setEnvironment(QProcess::systemEnvironment());
+    m_downloadProcess->setProcessEnvironment(m_manager->proxyEnvironment());
+#ifdef Q_OS_UNIX
+    m_downloadProcess->setUnixProcessParameters(QProcess::UnixProcessFlag::CloseFileDescriptors);
+#endif
     connect(m_downloadProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished)
             , this, &SearchDownloadHandler::downloadProcessFinished);
     const QStringList params
@@ -52,7 +55,7 @@ SearchDownloadHandler::SearchDownloadHandler(const QString &pluginName, const QS
         url
     };
     // Launch search
-    m_downloadProcess->start(Utils::ForeignApps::pythonInfo().executableName, params, QIODevice::ReadOnly);
+    m_downloadProcess->start(Utils::ForeignApps::pythonInfo().executablePath.data(), params, QIODevice::ReadOnly);
 }
 
 void SearchDownloadHandler::downloadProcessFinished(int exitcode)

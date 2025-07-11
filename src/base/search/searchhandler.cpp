@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,7 @@
 
 #include "base/global.h"
 #include "base/path.h"
+#include "base/utils/bytearray.h"
 #include "base/utils/foreignapps.h"
 #include "base/utils/fs.h"
 #include "searchpluginmanager.h"
@@ -70,7 +71,11 @@ SearchHandler::SearchHandler(const QString &pattern, const QString &category, co
     , m_searchTimeout {new QTimer(this)}
 {
     // Load environment variables (proxy)
-    m_searchProcess->setEnvironment(QProcess::systemEnvironment());
+    m_searchProcess->setProcessEnvironment(m_manager->proxyEnvironment());
+    m_searchProcess->setProgram(Utils::ForeignApps::pythonInfo().executablePath.data());
+#ifdef Q_OS_UNIX
+    m_searchProcess->setUnixProcessParameters(QProcess::UnixProcessFlag::CloseFileDescriptors);
+#endif
 
     const QStringList params
     {
@@ -79,9 +84,6 @@ SearchHandler::SearchHandler(const QString &pattern, const QString &category, co
         m_usedPlugins.join(u','),
         m_category
     };
-
-    // Launch search
-    m_searchProcess->setProgram(Utils::ForeignApps::pythonInfo().executableName);
     m_searchProcess->setArguments(params + m_pattern.split(u' '));
 
     connect(m_searchProcess, &QProcess::errorOccurred, this, &SearchHandler::processFailed);
@@ -93,6 +95,7 @@ SearchHandler::SearchHandler(const QString &pattern, const QString &category, co
     connect(m_searchTimeout, &QTimer::timeout, this, &SearchHandler::cancelSearch);
     m_searchTimeout->start(3min);
 
+    // Launch search
     // deferred start allows clients to handle starting-related signals
     QMetaObject::invokeMethod(this, [this]() { m_searchProcess->start(QIODevice::ReadOnly); }
         , Qt::QueuedConnection);
@@ -137,28 +140,23 @@ void SearchHandler::processFinished(const int exitcode)
 // line to SearchResult calling parseSearchResult().
 void SearchHandler::readSearchOutput()
 {
-    QByteArray output = m_searchProcess->readAllStandardOutput();
-    output.replace('\r', "");
+    const QByteArray output = m_searchResultLineTruncated + m_searchProcess->readAllStandardOutput();
+    QList<QByteArrayView> lines = Utils::ByteArray::splitToViews(output, "\n", Qt::KeepEmptyParts);
 
-    QList<QByteArray> lines = output.split('\n');
-    if (!m_searchResultLineTruncated.isEmpty())
-        lines.prepend(m_searchResultLineTruncated + lines.takeFirst());
-    m_searchResultLineTruncated = lines.takeLast().trimmed();
+    m_searchResultLineTruncated = lines.takeLast().trimmed().toByteArray();
 
     QList<SearchResult> searchResultList;
     searchResultList.reserve(lines.size());
 
-    for (const QByteArray &line : asConst(lines))
+    for (const QByteArrayView &line : asConst(lines))
     {
-        SearchResult searchResult;
-        if (parseSearchResult(QString::fromUtf8(line), searchResult))
-            searchResultList << searchResult;
+        if (SearchResult searchResult; parseSearchResult(line, searchResult))
+            searchResultList.append(std::move(searchResult));
     }
 
     if (!searchResultList.isEmpty())
     {
-        for (const SearchResult &result : searchResultList)
-            m_results.append(result);
+        m_results.append(searchResultList);
         emit newSearchResults(searchResultList);
     }
 }
@@ -172,17 +170,17 @@ void SearchHandler::processFailed()
 // Parse one line of search results list
 // Line is in the following form:
 // file url | file name | file size | nb seeds | nb leechers | Search engine url
-bool SearchHandler::parseSearchResult(const QStringView line, SearchResult &searchResult)
+bool SearchHandler::parseSearchResult(const QByteArrayView line, SearchResult &searchResult)
 {
-    const QList<QStringView> parts = line.split(u'|');
+    const QList<QByteArrayView> parts = Utils::ByteArray::splitToViews(line, "|");
     const int nbFields = parts.size();
 
     if (nbFields <= PL_ENGINE_URL)
         return false; // Anything after ENGINE_URL is optional
 
     searchResult = SearchResult();
-    searchResult.fileUrl = parts.at(PL_DL_LINK).trimmed().toString(); // download URL
-    searchResult.fileName = parts.at(PL_NAME).trimmed().toString(); // Name
+    searchResult.fileUrl = QString::fromUtf8(parts.at(PL_DL_LINK).trimmed()); // download URL
+    searchResult.fileName = QString::fromUtf8(parts.at(PL_NAME).trimmed()); // Name
     searchResult.fileSize = parts.at(PL_SIZE).trimmed().toLongLong(); // Size
 
     bool ok = false;
@@ -195,11 +193,11 @@ bool SearchHandler::parseSearchResult(const QStringView line, SearchResult &sear
     if (!ok || (searchResult.nbLeechers < 0))
         searchResult.nbLeechers = -1;
 
-    searchResult.siteUrl = parts.at(PL_ENGINE_URL).trimmed().toString(); // Search engine site URL
+    searchResult.siteUrl = QString::fromUtf8(parts.at(PL_ENGINE_URL).trimmed()); // Search engine site URL
     searchResult.engineName = m_manager->pluginNameBySiteURL(searchResult.siteUrl); // Search engine name
 
     if (nbFields > PL_DESC_LINK)
-        searchResult.descrLink = parts.at(PL_DESC_LINK).trimmed().toString(); // Description Link
+        searchResult.descrLink = QString::fromUtf8(parts.at(PL_DESC_LINK).trimmed()); // Description Link
 
     if (nbFields > PL_PUB_DATE)
     {

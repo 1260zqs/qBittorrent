@@ -43,6 +43,7 @@
 
 #include "base/addtorrentmanager.h"
 #include "base/asyncfilestorage.h"
+#include "base/bittorrent/addtorrenterror.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrentdescriptor.h"
 #include "base/global.h"
@@ -375,10 +376,24 @@ void AutoDownloader::handleTorrentAdded(const QString &source)
     }
 }
 
-void AutoDownloader::handleAddTorrentFailed(const QString &source)
+void AutoDownloader::handleAddTorrentFailed(const QString &source, const BitTorrent::AddTorrentError &error)
 {
-    m_waitingJobs.remove(source);
-    // TODO: Re-schedule job here.
+    const auto job = m_waitingJobs.take(source);
+    if (!job)
+        return;
+
+    if (error.kind == BitTorrent::AddTorrentError::DuplicateTorrent)
+    {
+        if (Feed *feed = Session::instance()->feedByURL(job->feedURL))
+        {
+            if (Article *article = feed->articleByGUID(job->articleData.value(Article::KeyId).toString()))
+                article->markAsRead();
+        }
+    }
+    else
+    {
+        // TODO: Re-schedule job here.
+    }
 }
 
 void AutoDownloader::handleNewArticle(const Article *article)

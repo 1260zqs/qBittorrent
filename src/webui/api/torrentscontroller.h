@@ -28,7 +28,23 @@
 
 #pragma once
 
+#include <QHash>
+#include <QSet>
+
+#include "base/bittorrent/torrentdescriptor.h"
 #include "apicontroller.h"
+
+namespace BitTorrent
+{
+    class InfoHash;
+    class TorrentID;
+    class TorrentInfo;
+}
+
+namespace Net
+{
+    struct DownloadResult;
+}
 
 class TorrentsController : public APIController
 {
@@ -36,7 +52,7 @@ class TorrentsController : public APIController
     Q_DISABLE_COPY_MOVE(TorrentsController)
 
 public:
-    using APIController::APIController;
+    explicit TorrentsController(IApplication *app, QObject *parent = nullptr);
 
 private slots:
     void countAction();
@@ -61,6 +77,7 @@ private slots:
     void removeCategoriesAction();
     void categoriesAction();
     void addTagsAction();
+    void setTagsAction();
     void removeTagsAction();
     void createTagsAction();
     void deleteTagsAction();
@@ -94,4 +111,15 @@ private slots:
     void exportAction();
     void SSLParametersAction();
     void setSSLParametersAction();
+    void fetchMetadataAction();
+    void parseMetadataAction();
+    void saveMetadataAction();
+
+private:
+    void onDownloadFinished(const Net::DownloadResult &result);
+    void onMetadataDownloaded(const BitTorrent::TorrentInfo &info);
+
+    QHash<QString, BitTorrent::InfoHash> m_torrentSourceCache;
+    QHash<BitTorrent::TorrentID, BitTorrent::TorrentDescriptor> m_torrentMetadataCache;
+    QSet<QString> m_requestedTorrentSource;
 };

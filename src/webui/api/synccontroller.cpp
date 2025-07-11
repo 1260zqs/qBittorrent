@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 
 #include "synccontroller.h"
 
+#include <QFuture>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMetaObject>
@@ -118,6 +119,28 @@ namespace
     const QString KEY_SERVER_STATE = u"server_state"_s;
     const QString KEY_FULL_UPDATE = u"full_update"_s;
     const QString KEY_RESPONSE_ID = u"rid"_s;
+
+    const QString KEY_TORRENT_HAS_TRACKER_WARNING = u"has_tracker_warning"_s;
+    const QString KEY_TORRENT_HAS_TRACKER_ERROR = u"has_tracker_error"_s;
+    const QString KEY_TORRENT_HAS_OTHER_ANNOUNCE_ERROR = u"has_other_announce_error"_s;
+
+    QStringList asStrings(const QSet<BitTorrent::TorrentID> &torrentIDs)
+    {
+        QStringList result;
+        result.reserve(torrentIDs.size());
+        for (const BitTorrent::TorrentID &torrentID : torrentIDs)
+            result.emplaceBack(torrentID.toString());
+
+        return result;
+    }
+
+    bool hasWarningMessage(const BitTorrent::TrackerEntryStatus &status)
+    {
+        return std::ranges::any_of(status.endpoints, [](const BitTorrent::TrackerEndpointStatus &endpointEntry)
+        {
+            return (endpointEntry.state == BitTorrent::TrackerEndpointState::Working) && !endpointEntry.message.isEmpty();
+        });
+    }
 
     QVariantMap processMap(const QVariantMap &prevData, const QVariantMap &data);
     std::pair<QVariantMap, QVariantList> processHash(QVariantHash prevData, const QVariantHash &data);
@@ -383,6 +406,39 @@ namespace
 
         return QJsonObject::fromVariantMap(syncData);
     }
+
+    void addAnnounceStats(QVariantMap &serializedTorrent, const BitTorrent::Torrent *torrent)
+    {
+        bool hasTrackerWarning = false;
+        bool hasTrackerError = false;
+        bool hasOtherAnnounceError = false;
+        for (const BitTorrent::TrackerEntryStatus &status : asConst(torrent->trackers()))
+        {
+            switch (status.state)
+            {
+            case BitTorrent::TrackerEndpointState::Working:
+                if (!hasTrackerWarning && hasWarningMessage(status))
+                    hasTrackerWarning = true;
+                break;
+            case BitTorrent::TrackerEndpointState::TrackerError:
+                hasTrackerError = true;
+                break;
+            case BitTorrent::TrackerEndpointState::NotWorking:
+            case BitTorrent::TrackerEndpointState::Unreachable:
+                hasOtherAnnounceError = true;
+                break;
+            default:
+                break;
+            }
+
+            if (hasTrackerWarning && hasTrackerError && hasOtherAnnounceError)
+                break;
+        }
+
+        serializedTorrent[KEY_TORRENT_HAS_TRACKER_WARNING] = hasTrackerWarning;
+        serializedTorrent[KEY_TORRENT_HAS_TRACKER_ERROR] = hasTrackerError;
+        serializedTorrent[KEY_TORRENT_HAS_OTHER_ANNOUNCE_ERROR] = hasOtherAnnounceError;
+    }
 }
 
 SyncController::SyncController(IApplication *app, QObject *parent)
@@ -444,6 +500,9 @@ void SyncController::updateFreeDiskSpace(const qint64 freeDiskSpace)
 //  - "seen_complete": Indicates the time when the torrent was last seen complete/whole
 //  - "last_activity": Last time when a chunk was downloaded/uploaded
 //  - "total_size": Size including unwanted data
+//  - "has_tracker_warning": the torrent has working tracker that has a message
+//  - "has_tracker_error": the torrent has a tracker error
+//  - "has_other_announce_error": the torrent has other problems announcing to a tracker
 // Server state map may contain the following keys:
 //  - "connection_status": connection status
 //  - "dht_nodes": DHT nodes count
@@ -487,6 +546,7 @@ void SyncController::maindataAction()
         connect(btSession, &BitTorrent::Session::trackersAdded, this, &SyncController::onTorrentTrackersChanged);
         connect(btSession, &BitTorrent::Session::trackersRemoved, this, &SyncController::onTorrentTrackersChanged);
         connect(btSession, &BitTorrent::Session::trackersChanged, this, &SyncController::onTorrentTrackersChanged);
+        connect(btSession, &BitTorrent::Session::trackerEntryStatusesUpdated, this, &SyncController::onTorrentTrackerEntryStatusesUpdated);
     }
 
     const int acceptedID = params()[u"rid"_s].toInt();
@@ -525,6 +585,7 @@ void SyncController::makeMaindataSnapshot()
 
         QVariantMap serializedTorrent = serialize(*torrent);
         serializedTorrent.remove(KEY_TORRENT_ID);
+        addAnnounceStats(serializedTorrent, torrent);
 
         for (const BitTorrent::TrackerEntryStatus &status : asConst(torrent->trackers()))
             m_knownTrackers[status.url].insert(torrentID);
@@ -546,14 +607,8 @@ void SyncController::makeMaindataSnapshot()
     for (const Tag &tag : asConst(session->tags()))
         m_maindataSnapshot.tags.append(tag.toString());
 
-    for (auto trackersIter = m_knownTrackers.cbegin(); trackersIter != m_knownTrackers.cend(); ++trackersIter)
-    {
-        QStringList torrentIDs;
-        for (const BitTorrent::TorrentID &torrentID : asConst(trackersIter.value()))
-            torrentIDs.append(torrentID.toString());
-
-        m_maindataSnapshot.trackers[trackersIter.key()] = torrentIDs;
-    }
+    for (const auto &[tracker, torrentIDs] : m_knownTrackers.asKeyValueRange())
+        m_maindataSnapshot.trackers[tracker] = asStrings(torrentIDs);
 
     m_maindataSnapshot.serverState = getTransferInfo();
     m_maindataSnapshot.serverState[KEY_TRANSFER_FREESPACEONDISK] = m_freeDiskSpace;
@@ -578,8 +633,12 @@ QJsonObject SyncController::generateMaindataSyncData(const int id, const bool fu
 
     for (const BitTorrent::TorrentID &torrentID : asConst(m_updatedTorrents))
         m_maindataSyncBuf.removedTorrents.removeOne(torrentID.toString());
+
     for (const BitTorrent::TorrentID &torrentID : asConst(m_removedTorrents))
-        m_maindataSyncBuf.torrents.remove(torrentID.toString());
+    {
+        const QString torrentIDStr = torrentID.toString();
+        m_maindataSyncBuf.torrents.remove(torrentIDStr);
+    }
 
     for (const QString &tracker : asConst(m_updatedTrackers))
         m_maindataSyncBuf.removedTrackers.removeOne(tracker);
@@ -634,30 +693,64 @@ QJsonObject SyncController::generateMaindataSyncData(const int id, const bool fu
         QVariantMap serializedTorrent = serialize(*torrent);
         serializedTorrent.remove(KEY_TORRENT_ID);
 
-        auto &torrentSnapshot = m_maindataSnapshot.torrents[torrentID.toString()];
+        const QString torrentIDStr = torrentID.toString();
+        auto &torrentSnapshot = m_maindataSnapshot.torrents[torrentIDStr];
+
+        if (m_announcedTorrents.contains(torrentID))
+        {
+            addAnnounceStats(serializedTorrent, torrent);
+        }
+        else
+        {
+            serializedTorrent[KEY_TORRENT_HAS_TRACKER_WARNING] = torrentSnapshot[KEY_TORRENT_HAS_TRACKER_WARNING];
+            serializedTorrent[KEY_TORRENT_HAS_TRACKER_ERROR] = torrentSnapshot[KEY_TORRENT_HAS_TRACKER_ERROR];
+            serializedTorrent[KEY_TORRENT_HAS_OTHER_ANNOUNCE_ERROR] = torrentSnapshot[KEY_TORRENT_HAS_OTHER_ANNOUNCE_ERROR];
+        }
 
         if (const QVariantMap syncData = processMap(torrentSnapshot, serializedTorrent); !syncData.isEmpty())
         {
-            m_maindataSyncBuf.torrents[torrentID.toString()] = syncData;
+            m_maindataSyncBuf.torrents[torrentIDStr] = syncData;
             torrentSnapshot = serializedTorrent;
         }
     }
+
+    for (const BitTorrent::TorrentID &torrentID : asConst(m_announcedTorrents))
+    {
+        if (m_updatedTorrents.contains(torrentID))
+            continue;
+
+        const BitTorrent::Torrent *torrent = session->getTorrent(torrentID);
+        Q_ASSERT(torrent);
+
+        const QString torrentIDStr = torrentID.toString();
+        auto &torrentSnapshot = m_maindataSnapshot.torrents[torrentIDStr];
+
+        // Only announce stats are changed so don't need to serialize torrent again
+        QVariantMap serializedTorrent = torrentSnapshot;
+        addAnnounceStats(serializedTorrent, torrent);
+
+        if (const QVariantMap syncData = processMap(torrentSnapshot, serializedTorrent); !syncData.isEmpty())
+        {
+            m_maindataSyncBuf.torrents[torrentIDStr] = syncData;
+            torrentSnapshot = serializedTorrent;
+        }
+    }
+
     m_updatedTorrents.clear();
+    m_announcedTorrents.clear();
 
     for (const BitTorrent::TorrentID &torrentID : asConst(m_removedTorrents))
     {
-        m_maindataSyncBuf.removedTorrents.append(torrentID.toString());
-        m_maindataSnapshot.torrents.remove(torrentID.toString());
+        const QString torrentIDStr = torrentID.toString();
+
+        m_maindataSyncBuf.removedTorrents.append(torrentIDStr);
+        m_maindataSnapshot.torrents.remove(torrentIDStr);
     }
     m_removedTorrents.clear();
 
     for (const QString &tracker : asConst(m_updatedTrackers))
     {
-        const QSet<BitTorrent::TorrentID> torrentIDs = m_knownTrackers[tracker];
-        QStringList serializedTorrentIDs;
-        serializedTorrentIDs.reserve(torrentIDs.size());
-        for (const BitTorrent::TorrentID &torrentID : torrentIDs)
-            serializedTorrentIDs.append(torrentID.toString());
+        const QStringList serializedTorrentIDs = asStrings(m_knownTrackers[tracker]);
 
         m_maindataSyncBuf.trackers[tracker] = serializedTorrentIDs;
         m_maindataSnapshot.trackers[tracker] = serializedTorrentIDs;
@@ -745,7 +838,7 @@ void SyncController::torrentPeersAction()
     QVariantMap data;
     QVariantHash peers;
 
-    const QList<BitTorrent::PeerInfo> peersList = torrent->peers();
+    const QList<BitTorrent::PeerInfo> peersList = torrent->fetchPeerInfo().takeResult();
 
     bool resolvePeerCountries = Preferences::instance()->resolvePeerCountries();
 
@@ -846,6 +939,7 @@ void SyncController::onTorrentAdded(BitTorrent::Torrent *torrent)
 
     m_removedTorrents.remove(torrentID);
     m_updatedTorrents.insert(torrentID);
+    m_announcedTorrents.insert(torrentID);
 
     for (const BitTorrent::TrackerEntryStatus &status : asConst(torrent->trackers()))
     {
@@ -859,12 +953,13 @@ void SyncController::onTorrentAboutToBeRemoved(BitTorrent::Torrent *torrent)
 {
     const BitTorrent::TorrentID torrentID = torrent->id();
 
+    m_announcedTorrents.remove(torrentID);
     m_updatedTorrents.remove(torrentID);
     m_removedTorrents.insert(torrentID);
 
     for (const BitTorrent::TrackerEntryStatus &status : asConst(torrent->trackers()))
     {
-        auto iter = m_knownTrackers.find(status.url);
+        const auto iter = m_knownTrackers.find(status.url);
         Q_ASSERT(iter != m_knownTrackers.end());
         if (iter == m_knownTrackers.end()) [[unlikely]]
             continue;
@@ -898,6 +993,7 @@ void SyncController::onTorrentMetadataReceived(BitTorrent::Torrent *torrent)
 void SyncController::onTorrentStopped(BitTorrent::Torrent *torrent)
 {
     m_updatedTorrents.insert(torrent->id());
+    m_announcedTorrents.insert(torrent->id());
 }
 
 void SyncController::onTorrentStarted(BitTorrent::Torrent *torrent)
@@ -980,4 +1076,12 @@ void SyncController::onTorrentTrackersChanged(BitTorrent::Torrent *torrent)
             m_removedTrackers.remove(currentTracker);
         }
     }
+
+    m_announcedTorrents.insert(torrentID);
+}
+
+void SyncController::onTorrentTrackerEntryStatusesUpdated(const BitTorrent::Torrent *torrent
+        , [[maybe_unused]] const QHash<QString, BitTorrent::TrackerEntryStatus> &updatedTrackers)
+{
+    m_announcedTorrents.insert(torrent->id());
 }

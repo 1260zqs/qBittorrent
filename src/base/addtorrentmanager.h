@@ -44,6 +44,7 @@ namespace BitTorrent
     class Session;
     class Torrent;
     class TorrentDescriptor;
+    struct AddTorrentError;
 }
 
 namespace Net
@@ -66,7 +67,7 @@ public:
 
 signals:
     void torrentAdded(const QString &source, BitTorrent::Torrent *torrent);
-    void addTorrentFailed(const QString &source, const QString &reason);
+    void addTorrentFailed(const QString &source, const BitTorrent::AddTorrentError &reason);
 
 protected:
     bool addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
@@ -79,7 +80,7 @@ protected:
 private:
     void onDownloadFinished(const Net::DownloadResult &result);
     void onSessionTorrentAdded(BitTorrent::Torrent *torrent);
-    void onSessionAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const QString &reason);
+    void onSessionAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const BitTorrent::AddTorrentError &reason);
     bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
             , const BitTorrent::AddTorrentParams &addTorrentParams);
 

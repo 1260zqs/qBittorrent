@@ -36,37 +36,37 @@
         // Tabs
         MochaUI.initializeTabs("preferencesTabs");
 
-        $("PrefBehaviorLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("BehaviorTab").classList.remove("invisible");
+        document.getElementById("PrefBehaviorLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("BehaviorTab").classList.remove("invisible");
         });
-        $("PrefDownloadsLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("DownloadsTab").classList.remove("invisible");
+        document.getElementById("PrefDownloadsLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("DownloadsTab").classList.remove("invisible");
         });
-        $("PrefConnectionLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("ConnectionTab").classList.remove("invisible");
+        document.getElementById("PrefConnectionLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("ConnectionTab").classList.remove("invisible");
         });
-        $("PrefSpeedLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("SpeedTab").classList.remove("invisible");
+        document.getElementById("PrefSpeedLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("SpeedTab").classList.remove("invisible");
         });
-        $("PrefBittorrentLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("BittorrentTab").classList.remove("invisible");
+        document.getElementById("PrefBittorrentLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("BittorrentTab").classList.remove("invisible");
         });
-        $("PrefRSSLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("RSSTab").classList.remove("invisible");
+        document.getElementById("PrefRSSLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("RSSTab").classList.remove("invisible");
         });
-        $("PrefWebUILink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("WebUITab").classList.remove("invisible");
+        document.getElementById("PrefWebUILink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("WebUITab").classList.remove("invisible");
         });
-        $("PrefAdvancedLink").addEventListener("click", (e) => {
-            $$(".PrefTab").forEach(tab => { tab.classList.add("invisible"); });
-            $("AdvancedTab").classList.remove("invisible");
+        document.getElementById("PrefAdvancedLink").addEventListener("click", (e) => {
+            Array.prototype.forEach.call(document.querySelectorAll(".PrefTab"), (tab => tab.classList.add("invisible")));
+            document.getElementById("AdvancedTab").classList.remove("invisible");
         });
     })();
 </script>

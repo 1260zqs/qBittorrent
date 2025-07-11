@@ -105,6 +105,8 @@ DefaultThemeSource::DefaultThemeSource()
     , m_colors {defaultUIThemeColors()}
 {
     loadColors();
+    // Palette isn't customizable in default theme
+    m_colors.insert(defaultPaletteColors());
 }
 
 QByteArray DefaultThemeSource::readStyleSheet()
@@ -175,7 +177,7 @@ void DefaultThemeSource::loadColors()
     const QHash<QString, QColor> lightModeColorOverrides = colorsFromJSON(config.value(KEY_COLORS_LIGHT).toObject());
     for (auto overridesIt = lightModeColorOverrides.cbegin(); overridesIt != lightModeColorOverrides.cend(); ++overridesIt)
     {
-        auto it = m_colors.find(overridesIt.key());
+        const auto it = m_colors.find(overridesIt.key());
         if (it != m_colors.end())
             it.value().light = overridesIt.value();
     }
@@ -183,7 +185,7 @@ void DefaultThemeSource::loadColors()
     const QHash<QString, QColor> darkModeColorOverrides = colorsFromJSON(config.value(KEY_COLORS_DARK).toObject());
     for (auto overridesIt = darkModeColorOverrides.cbegin(); overridesIt != darkModeColorOverrides.cend(); ++overridesIt)
     {
-        auto it = m_colors.find(overridesIt.key());
+        const auto it = m_colors.find(overridesIt.key());
         if (it != m_colors.end())
             it.value().dark = overridesIt.value();
     }

@@ -176,6 +176,7 @@ void Utils::Gui::openFolderSelect(const Path &path)
     const int lineMaxLength = 64;
 
     QProcess proc;
+    proc.setUnixProcessParameters(QProcess::UnixProcessFlag::CloseFileDescriptors);
     proc.start(u"xdg-mime"_s, {u"query"_s, u"default"_s, u"inode/directory"_s});
     proc.waitForFinished();
     const auto output = QString::fromLocal8Bit(proc.readLine(lineMaxLength).simplified());

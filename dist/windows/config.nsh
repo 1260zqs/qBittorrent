@@ -14,7 +14,7 @@
 ; 4.5.1.3 -> good
 ; 4.5.1.3.2 -> bad
 ; 4.5.0beta -> bad
-!define /ifndef QBT_VERSION "5.1.0"
+!define /ifndef QBT_VERSION "5.2.0"
 
 ; Option that controls the installer's window name
 ; If set, its value will be used like this:
@@ -86,7 +86,7 @@ OutFile "qbittorrent_${QBT_INSTALLER_FILENAME}_setup.exe"
 ;Installer Version Information
 VIAddVersionKey "ProductName" "qBittorrent"
 VIAddVersionKey "CompanyName" "The qBittorrent project"
-VIAddVersionKey "LegalCopyright" "Copyright ©2006-2024 The qBittorrent project"
+VIAddVersionKey "LegalCopyright" "Copyright ©2006-2025 The qBittorrent project"
 VIAddVersionKey "FileDescription" "qBittorrent - A Bittorrent Client"
 VIAddVersionKey "FileVersion" "${QBT_VERSION}"
 
@@ -111,7 +111,8 @@ RequestExecutionLevel user
 !define MUI_HEADERIMAGE
 !define MUI_COMPONENTSPAGE_NODESC
 ;!define MUI_ICON "qbittorrent.ico"
-!define MUI_LICENSEPAGE_CHECKBOX
+!define MUI_LICENSEPAGE_BUTTON $(^NextBtn)
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "$_CLICK"
 !define MUI_LANGDLL_ALLLANGUAGES
 
 ;--------------------------------

@@ -101,6 +101,7 @@
 #include "ui_mainwindow.h"
 #include "uithememanager.h"
 #include "utils.h"
+#include "utils/keysequence.h"
 
 #ifdef Q_OS_MACOS
 #include "macosdockbadge/badger.h"
@@ -130,6 +131,8 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     , m_ui {new Ui::MainWindow}
     , m_downloadRate {Utils::Misc::friendlyUnit(0, true)}
     , m_uploadRate {Utils::Misc::friendlyUnit(0, true)}
+    , m_pwr {new PowerManagement}
+    , m_preventTimer {new QTimer(this)}
     , m_storeExecutionLogEnabled {EXECUTIONLOG_SETTINGS_KEY(u"Enabled"_s)}
     , m_storeDownloadTrackerFavicon {SETTINGS_KEY(u"DownloadTrackerFavicon"_s)}
     , m_storeExecutionLogTypes {EXECUTIONLOG_SETTINGS_KEY(u"Types"_s), Log::MsgType::ALL}
@@ -336,8 +339,6 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     connect(m_ui->actionManageCookies, &QAction::triggered, this, &MainWindow::manageCookies);
 
     // Initialise system sleep inhibition timer
-    m_pwr = new PowerManagement(this);
-    m_preventTimer = new QTimer(this);
     m_preventTimer->setSingleShot(true);
     connect(m_preventTimer, &QTimer::timeout, this, &MainWindow::updatePowerManagementState);
     connect(pref, &Preferences::changed, this, &MainWindow::updatePowerManagementState);
@@ -837,6 +838,7 @@ void MainWindow::cleanup()
     delete m_executableWatcher;
 
     m_preventTimer->stop();
+    delete m_pwr;
 
 #if (defined(Q_OS_WIN) || defined(Q_OS_MACOS))
     if (m_programUpdateTimer)
@@ -882,7 +884,7 @@ void MainWindow::createKeyboardShortcuts()
 {
     m_ui->actionCreateTorrent->setShortcut(QKeySequence::New);
     m_ui->actionOpen->setShortcut(QKeySequence::Open);
-    m_ui->actionDelete->setShortcut(QKeySequence::Delete);
+    m_ui->actionDelete->setShortcut(Utils::KeySequence::deleteItem());
     m_ui->actionDelete->setShortcutContext(Qt::WidgetShortcut);  // nullify its effect: delete key event is handled by respective widgets, not here
     m_ui->actionDownloadFromURL->setShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_O);
     m_ui->actionExit->setShortcut(Qt::CTRL | Qt::Key_Q);
@@ -1161,7 +1163,7 @@ void MainWindow::closeEvent(QCloseEvent *e)
     if (!m_forceExit)
     {
         hide();
-        e->accept();
+        e->ignore();
         return;
     }
 #else
@@ -1614,14 +1616,14 @@ void MainWindow::on_actionSearchWidget_triggered()
 #ifdef Q_OS_WIN
             const QMessageBox::StandardButton buttonPressed = QMessageBox::question(this, tr("Old Python Runtime")
                 , tr("Your Python version (%1) is outdated. Minimum requirement: %2.\nDo you want to install a newer version now?")
-                    .arg(pyInfo.version.toString(), u"3.9.0")
+                    .arg(pyInfo.version.toString(), Utils::ForeignApps::PythonInfo::MINIMUM_SUPPORTED_VERSION.toString())
                 , (QMessageBox::Yes | QMessageBox::No), QMessageBox::Yes);
             if (buttonPressed == QMessageBox::Yes)
                 installPython();
 #else
             QMessageBox::information(this, tr("Old Python Runtime")
                 , tr("Your Python version (%1) is outdated. Please upgrade to latest version for search engines to work.\nMinimum requirement: %2.")
-                .arg(pyInfo.version.toString(), u"3.9.0"));
+                .arg(pyInfo.version.toString(), Utils::ForeignApps::PythonInfo::MINIMUM_SUPPORTED_VERSION.toString()));
 #endif
             return;
         }
@@ -1660,11 +1662,11 @@ void MainWindow::handleUpdateCheckFinished(ProgramUpdater *updater, const bool i
         updater->deleteLater();
     };
 
-    const QString newVersion = updater->getNewVersion();
-    if (!newVersion.isEmpty())
+    const auto newVersion = updater->getNewVersion();
+    if (newVersion.isValid())
     {
         const QString msg {tr("A new version is available.") + u"<br/>"
-            + tr("Do you want to download %1?").arg(newVersion) + u"<br/><br/>"
+            + tr("Do you want to download %1?").arg(newVersion.toString()) + u"<br/><br/>"
             + u"<a href=\"https://www.qbittorrent.org/news\">%1</a>"_s.arg(tr("Open changelog..."))};
         auto *msgBox = new QMessageBox {QMessageBox::Question, tr("qBittorrent Update Available"), msg
             , (QMessageBox::Yes | QMessageBox::No), this};
@@ -1826,7 +1828,7 @@ void MainWindow::updatePowerManagementState() const
 
         return torrent->isMoving();
     });
-    m_pwr->setActivityState(inhibitSuspend);
+    m_pwr->setActivityState(inhibitSuspend ? PowerManagement::ActivityState::Busy : PowerManagement::ActivityState::Idle);
 
     m_preventTimer->start(PREVENT_SUSPEND_INTERVAL);
 }

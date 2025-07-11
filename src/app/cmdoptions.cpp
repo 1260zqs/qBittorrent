@@ -465,13 +465,13 @@ QBtCommandLineParameters parseCommandLine(const QStringList &args)
     return result;
 }
 
-QString wrapText(const QString &text, int initialIndentation = USAGE_TEXT_COLUMN, int wrapAtColumn = WRAP_AT_COLUMN)
+QString wrapText(const QString &text, const int initialIndentation = USAGE_TEXT_COLUMN, const int wrapAtColumn = WRAP_AT_COLUMN)
 {
-    QStringList words = text.split(u' ');
+    const QStringList words = text.split(u' ');
     QStringList lines = {words.first()};
     int currentLineMaxLength = wrapAtColumn - initialIndentation;
 
-    for (const QString &word : asConst(words.mid(1)))
+    for (const QString &word : asConst(words.sliced(1)))
     {
         if (lines.last().length() + word.length() + 1 < currentLineMaxLength)
         {
@@ -490,6 +490,12 @@ QString wrapText(const QString &text, int initialIndentation = USAGE_TEXT_COLUMN
 QString makeUsage(const QString &prgName)
 {
     const QString indentation {USAGE_INDENTATION, u' '};
+
+#if defined(Q_OS_WIN)
+    const QString noSplashCommand = u"set QBT_NO_SPLASH=1 && " + prgName;
+#else
+    const QString noSplashCommand = u"QBT_NO_SPLASH=1 " + prgName;
+#endif
 
     const QString text = QCoreApplication::translate("CMD Options", "Usage:") + u'\n'
         + indentation + prgName + u' ' + QCoreApplication::translate("CMD Options", "[options] [(<filename> | <url>)...]") + u'\n'
@@ -542,7 +548,7 @@ QString makeUsage(const QString &prgName)
                                 "'parameter-name', environment variable name is 'QBT_PARAMETER_NAME' (in upper "
                                 "case, '-' replaced with '_'). To pass flag values, set the variable to '1' or "
                                 "'TRUE'. For example, to disable the splash screen: "), 0) + u'\n'
-        + u"QBT_NO_SPLASH=1 " + prgName + u'\n'
+        + noSplashCommand + u'\n'
         + wrapText(QCoreApplication::translate("CMD Options", "Command line parameters take precedence over environment variables"), 0) + u'\n';
 
     return text;

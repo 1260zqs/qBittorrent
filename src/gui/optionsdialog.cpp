@@ -164,6 +164,7 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
     m_ui->tabSelection->item(TAB_DOWNLOADS)->setIcon(UIThemeManager::instance()->getIcon(u"download"_s, u"folder-download"_s));
     m_ui->tabSelection->item(TAB_SPEED)->setIcon(UIThemeManager::instance()->getIcon(u"speedometer"_s, u"chronometer"_s));
     m_ui->tabSelection->item(TAB_RSS)->setIcon(UIThemeManager::instance()->getIcon(u"application-rss"_s, u"application-rss+xml"_s));
+    m_ui->tabSelection->item(TAB_SEARCH)->setIcon(UIThemeManager::instance()->getIcon(u"edit-find"_s));
 #ifdef DISABLE_WEBUI
     m_ui->tabSelection->item(TAB_WEBUI)->setHidden(true);
 #else
@@ -190,6 +191,7 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
     loadSpeedTabOptions();
     loadBittorrentTabOptions();
     loadRSSTabOptions();
+    loadSearchTabOptions();
 #ifndef DISABLE_WEBUI
     loadWebUITabOptions();
 #endif
@@ -353,6 +355,7 @@ void OptionsDialog::loadBehaviorTabOptions()
     // Groupbox's check state  must be initialized after some of its children if they are manually enabled/disabled
     m_ui->checkFileLog->setChecked(app()->isFileLoggerEnabled());
 
+    m_ui->checkBoxFreeDiskSpaceStatusBar->setChecked(pref->isStatusbarFreeDiskSpaceDisplayed());
     m_ui->checkBoxExternalIPStatusBar->setChecked(pref->isStatusbarExternalIPDisplayed());
     m_ui->checkBoxPerformanceWarning->setChecked(session->isPerformanceWarningEnabled());
 
@@ -441,6 +444,7 @@ void OptionsDialog::loadBehaviorTabOptions()
     connect(m_ui->spinFileLogAge, qSpinBoxValueChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->comboFileLogAgeType, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
 
+    connect(m_ui->checkBoxFreeDiskSpaceStatusBar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkBoxExternalIPStatusBar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkBoxPerformanceWarning, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 }
@@ -534,6 +538,7 @@ void OptionsDialog::saveBehaviorTabOptions() const
 
     app()->setStartUpWindowState(m_ui->windowStateComboBox->currentData().value<WindowState>());
 
+    pref->setStatusbarFreeDiskSpaceDisplayed(m_ui->checkBoxFreeDiskSpaceStatusBar->isChecked());
     pref->setStatusbarExternalIPDisplayed(m_ui->checkBoxExternalIPStatusBar->isChecked());
     session->setPerformanceWarningEnabled(m_ui->checkBoxPerformanceWarning->isChecked());
 }
@@ -658,7 +663,7 @@ void OptionsDialog::loadDownloadsTabOptions()
 #else
     m_ui->autoRunConsole->hide();
 #endif
-    const auto autoRunStr = u"%1\n    %2\n    %3\n    %4\n    %5\n    %6\n    %7\n    %8\n    %9\n    %10\n    %11\n    %12\n    %13\n%14"_s
+    const auto autoRunStr = u"%1\n    %2\n    %3\n    %4\n    %5\n    %6\n    %7\n    %8\n    %9\n    %10\n    %11\n    %12\n    %13\n    %14\n%15"_s
         .arg(tr("Supported parameters (case sensitive):")
             , tr("%N: Torrent name")
             , tr("%L: Category")
@@ -672,6 +677,7 @@ void OptionsDialog::loadDownloadsTabOptions()
             , tr("%I: Info hash v1 (or '-' if unavailable)")
             , tr("%J: Info hash v2 (or '-' if unavailable)")
             , tr("%K: Torrent ID (either sha-1 info hash for v1 torrent or truncated sha-256 info hash for v2/hybrid torrent)")
+            , tr("%M: Comment")
             , tr("Tip: Encapsulate parameter with quotation marks to avoid text being cut off at whitespace (e.g., \"%N\")"));
     m_ui->labelAutoRunParam->setText(autoRunStr);
 
@@ -1273,6 +1279,28 @@ void OptionsDialog::saveRSSTabOptions() const
     autoDownloader->setDownloadRepacks(m_ui->checkSmartFilterDownloadRepacks->isChecked());
 }
 
+void OptionsDialog::loadSearchTabOptions()
+{
+    const auto *pref = Preferences::instance();
+
+    m_ui->groupStoreOpenedTabs->setChecked(pref->storeOpenedSearchTabs());
+    m_ui->checkStoreTabsSearchResults->setChecked(pref->storeOpenedSearchTabResults());
+    m_ui->searchHistoryLengthSpinBox->setValue(pref->searchHistoryLength());
+
+    connect(m_ui->groupStoreOpenedTabs, &QGroupBox::toggled, this, &OptionsDialog::enableApplyButton);
+    connect(m_ui->checkStoreTabsSearchResults, &QCheckBox::toggled, this, &OptionsDialog::enableApplyButton);
+    connect(m_ui->searchHistoryLengthSpinBox, qSpinBoxValueChanged, this, &OptionsDialog::enableApplyButton);
+}
+
+void OptionsDialog::saveSearchTabOptions() const
+{
+    auto *pref = Preferences::instance();
+
+    pref->setStoreOpenedSearchTabs(m_ui->groupStoreOpenedTabs->isChecked());
+    pref->setStoreOpenedSearchTabResults(m_ui->checkStoreTabsSearchResults->isChecked());
+    pref->setSearchHistoryLength(m_ui->searchHistoryLengthSpinBox->value());
+}
+
 #ifndef DISABLE_WEBUI
 void OptionsDialog::loadWebUITabOptions()
 {
@@ -1465,6 +1493,7 @@ void OptionsDialog::saveOptions() const
     saveSpeedTabOptions();
     saveBittorrentTabOptions();
     saveRSSTabOptions();
+    saveSearchTabOptions();
 #ifndef DISABLE_WEBUI
     saveWebUITabOptions();
 #endif
@@ -1661,7 +1690,7 @@ void OptionsDialog::adjustProxyOptions()
 
     if (currentProxyType == Net::ProxyType::None)
     {
-        m_ui->labelProxyTypeIncompatible->setVisible(false);
+        m_ui->labelProxyTypeUnavailable->setVisible(false);
 
         m_ui->lblProxyIP->setEnabled(false);
         m_ui->textProxyIP->setEnabled(false);
@@ -1686,7 +1715,7 @@ void OptionsDialog::adjustProxyOptions()
 
         if (currentProxyType == Net::ProxyType::SOCKS4)
         {
-            m_ui->labelProxyTypeIncompatible->setVisible(true);
+            m_ui->labelProxyTypeUnavailable->setVisible(true);
 
             m_ui->checkProxyHostnameLookup->setEnabled(false);
             m_ui->checkProxyRSS->setEnabled(false);
@@ -1695,7 +1724,7 @@ void OptionsDialog::adjustProxyOptions()
         else
         {
             // SOCKS5 or HTTP
-            m_ui->labelProxyTypeIncompatible->setVisible(false);
+            m_ui->labelProxyTypeUnavailable->setVisible(false);
 
             m_ui->checkProxyHostnameLookup->setEnabled(true);
             m_ui->checkProxyRSS->setEnabled(true);
@@ -1731,9 +1760,9 @@ void OptionsDialog::initializeStyleCombo()
     m_ui->labelStyle->hide();
     m_ui->comboStyle->hide();
     m_ui->labelStyleHint->hide();
-    m_ui->UISettingsBoxLayout->removeWidget(m_ui->labelStyle);
-    m_ui->UISettingsBoxLayout->removeWidget(m_ui->comboStyle);
-    m_ui->UISettingsBoxLayout->removeWidget(m_ui->labelStyleHint);
+    m_ui->layoutStyle->removeWidget(m_ui->labelStyle);
+    m_ui->layoutStyle->removeWidget(m_ui->comboStyle);
+    m_ui->layoutStyle->removeWidget(m_ui->labelStyleHint);
 #endif
 }
 
@@ -1747,9 +1776,9 @@ void OptionsDialog::initializeColorSchemeOptions()
 #else
     m_ui->labelColorScheme->hide();
     m_ui->comboColorScheme->hide();
-    m_ui->UISettingsBoxLayout->removeWidget(m_ui->labelColorScheme);
-    m_ui->UISettingsBoxLayout->removeWidget(m_ui->comboColorScheme);
-    m_ui->UISettingsBoxLayout->removeItem(m_ui->spacerColorScheme);
+    m_ui->layoutStyle->removeWidget(m_ui->labelColorScheme);
+    m_ui->layoutStyle->removeWidget(m_ui->comboColorScheme);
+    m_ui->layoutStyle->removeItem(m_ui->spacerColorScheme);
 #endif
 }
 
@@ -1831,10 +1860,10 @@ void OptionsDialog::setLocale(const QString &localeStr)
     if (index < 0)
     {
         //Attempt to find a language match without a country
-        int pos = name.indexOf(u'_');
+        const int pos = name.indexOf(u'_');
         if (pos > -1)
         {
-            QString lang = name.left(pos);
+            const QString lang = name.first(pos);
             index = m_ui->comboLanguage->findData(lang, Qt::UserRole);
         }
     }

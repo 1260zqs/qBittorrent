@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QFuture>
 #include <QHeaderView>
 #include <QHostAddress>
 #include <QList>
@@ -58,6 +59,7 @@
 #include "base/utils/misc.h"
 #include "base/utils/string.h"
 #include "gui/uithememanager.h"
+#include "gui/utils/keysequence.h"
 #include "peerlistsortmodel.h"
 #include "peersadditiondialog.h"
 #include "propertieswidget.h"
@@ -187,7 +189,7 @@ PeerListWidget::PeerListWidget(PropertiesWidget *parent)
     handleSortColumnChanged(header()->sortIndicatorSection());
     const auto *copyHotkey = new QShortcut(QKeySequence::Copy, this, nullptr, nullptr, Qt::WidgetShortcut);
     connect(copyHotkey, &QShortcut::activated, this, &PeerListWidget::copySelectedPeers);
-    const auto *deleteHotkey = new QShortcut(QKeySequence::Delete, this, nullptr, nullptr, Qt::WidgetShortcut);
+    const auto *deleteHotkey = new QShortcut(Utils::KeySequence::deleteItem(), this, nullptr, nullptr, Qt::WidgetShortcut);
     connect(deleteHotkey, &QShortcut::activated, this, &PeerListWidget::banSelectedPeers);
 }
 
@@ -405,10 +407,13 @@ void PeerListWidget::loadPeers(const BitTorrent::Torrent *torrent)
         return;
 
     using TorrentPtr = QPointer<const BitTorrent::Torrent>;
-    torrent->fetchPeerInfo([this, torrent = TorrentPtr(torrent)](const QList<BitTorrent::PeerInfo> &peers)
+    torrent->fetchPeerInfo().then(this, [this, torrent = TorrentPtr(torrent)](const QList<BitTorrent::PeerInfo> &peers)
     {
-        if (torrent != m_properties->getCurrentTorrent())
+        if (const BitTorrent::Torrent *currentTorrent = m_properties->getCurrentTorrent();
+            !currentTorrent || (currentTorrent != torrent))
+        {
             return;
+        }
 
         // Remove I2P peers since they will be completely reloaded.
         for (const QStandardItem *item : asConst(m_I2PPeerItems))
@@ -420,7 +425,8 @@ void PeerListWidget::loadPeers(const BitTorrent::Torrent *torrent)
         for (auto i = m_peerItems.cbegin(); i != m_peerItems.cend(); ++i)
             existingPeers.insert(i.key());
 
-        const bool hideZeroValues = Preferences::instance()->getHideZeroValues();
+        const Preferences *pref = Preferences::instance();
+        const bool hideZeroValues = (pref->getHideZeroValues() && (pref->getHideZeroComboValues() == 0));
         for (const BitTorrent::PeerInfo &peer : peers)
         {
             const PeerEndpoint peerEndpoint {peer.address(), peer.connectionType()};

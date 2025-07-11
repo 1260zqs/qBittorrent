@@ -70,10 +70,10 @@ private:
 
     QSpinBox m_spinBoxSaveResumeDataInterval, m_spinBoxSaveStatisticsInterval, m_spinBoxTorrentFileSizeLimit, m_spinBoxBdecodeDepthLimit, m_spinBoxBdecodeTokenLimit,
              m_spinBoxAsyncIOThreads, m_spinBoxFilePoolSize, m_spinBoxCheckingMemUsage, m_spinBoxDiskQueueSize,
-             m_spinBoxOutgoingPortsMin, m_spinBoxOutgoingPortsMax, m_spinBoxUPnPLeaseDuration, m_spinBoxPeerToS,
+             m_spinBoxOutgoingPortsMin, m_spinBoxOutgoingPortsMax, m_spinBoxUPnPLeaseDuration, m_spinBoxPeerToS, m_spinBoxHostnameCacheTTL,
              m_spinBoxListRefresh, m_spinBoxTrackerPort, m_spinBoxSendBufferWatermark, m_spinBoxSendBufferLowWatermark,
              m_spinBoxSendBufferWatermarkFactor, m_spinBoxConnectionSpeed, m_spinBoxSocketSendBufferSize, m_spinBoxSocketReceiveBufferSize, m_spinBoxSocketBacklogSize,
-             m_spinBoxMaxConcurrentHTTPAnnounces, m_spinBoxStopTrackerTimeout, m_spinBoxSessionShutdownTimeout,
+             m_spinBoxAnnouncePort, m_spinBoxMaxConcurrentHTTPAnnounces, m_spinBoxStopTrackerTimeout, m_spinBoxSessionShutdownTimeout,
              m_spinBoxSavePathHistoryLength, m_spinBoxPeerTurnover, m_spinBoxPeerTurnoverCutoff, m_spinBoxPeerTurnoverInterval, m_spinBoxRequestQueueSize;
     QCheckBox m_checkBoxOsCache, m_checkBoxRecheckCompleted, m_checkBoxResolveCountries, m_checkBoxResolveHosts,
               m_checkBoxProgramNotifications, m_checkBoxTorrentAddedNotifications, m_checkBoxReannounceWhenAddressChanged, m_checkBoxTrackerFavicon, m_checkBoxTrackerStatus,
@@ -93,7 +93,7 @@ private:
     QSpinBox m_spinBoxHashingThreads;
 #endif
 
-#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_MACOS)
+#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
     QSpinBox m_spinBoxMemoryWorkingSetLimit;
 #endif
 
@@ -108,6 +108,7 @@ private:
 
 #ifndef Q_OS_MACOS
     QCheckBox m_checkBoxIconsInMenusEnabled;
+    QCheckBox m_checkBoxAttachedAddNewTorrentDialog;
 #endif
 
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)

@@ -44,25 +44,25 @@ public:
 private slots:
     void testConstructors() const
     {
-        QVERIFY(Path(u""_s) == Path(std::string("")));
-        QVERIFY(Path(u"abc"_s) == Path(std::string("abc")));
-        QVERIFY(Path(u"/abc"_s) == Path(std::string("/abc")));
-        QVERIFY(Path(uR"(\abc)"_s) == Path(std::string(R"(\abc)")));
+        QCOMPARE_EQ(Path(u""_s), Path(std::string("")));
+        QCOMPARE_EQ(Path(u"abc"_s), Path(std::string("abc")));
+        QCOMPARE_EQ(Path(u"/abc"_s), Path(std::string("/abc")));
+        QCOMPARE_EQ(Path(uR"(\abc)"_s), Path(std::string(R"(\abc)")));
 
 #ifdef Q_OS_WIN
-        QVERIFY(Path(uR"(c:)"_s) == Path(std::string(R"(c:)")));
-        QVERIFY(Path(uR"(c:/)"_s) == Path(std::string(R"(c:/)")));
-        QVERIFY(Path(uR"(c:/)"_s) == Path(std::string(R"(c:\)")));
-        QVERIFY(Path(uR"(c:\)"_s) == Path(std::string(R"(c:/)")));
-        QVERIFY(Path(uR"(c:\)"_s) == Path(std::string(R"(c:\)")));
+        QCOMPARE_EQ(Path(uR"(c:)"_s), Path(std::string(R"(c:)")));
+        QCOMPARE_EQ(Path(uR"(c:/)"_s), Path(std::string(R"(c:/)")));
+        QCOMPARE_EQ(Path(uR"(c:/)"_s), Path(std::string(R"(c:\)")));
+        QCOMPARE_EQ(Path(uR"(c:\)"_s), Path(std::string(R"(c:/)")));
+        QCOMPARE_EQ(Path(uR"(c:\)"_s), Path(std::string(R"(c:\)")));
 
-        QVERIFY(Path(uR"(\\?\C:)"_s) == Path(std::string(R"(\\?\C:)")));
-        QVERIFY(Path(uR"(\\?\C:/)"_s) == Path(std::string(R"(\\?\C:/)")));
-        QVERIFY(Path(uR"(\\?\C:/)"_s) == Path(std::string(R"(\\?\C:\)")));
-        QVERIFY(Path(uR"(\\?\C:\)"_s) == Path(std::string(R"(\\?\C:/)")));
-        QVERIFY(Path(uR"(\\?\C:\)"_s) == Path(std::string(R"(\\?\C:\)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:)"_s), Path(std::string(R"(\\?\C:)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:/)"_s), Path(std::string(R"(\\?\C:/)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:/)"_s), Path(std::string(R"(\\?\C:\)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:\)"_s), Path(std::string(R"(\\?\C:/)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:\)"_s), Path(std::string(R"(\\?\C:\)")));
 
-        QVERIFY(Path(uR"(\\?\C:\abc)"_s) == Path(std::string(R"(\\?\C:\abc)")));
+        QCOMPARE_EQ(Path(uR"(\\?\C:\abc)"_s), Path(std::string(R"(\\?\C:\abc)")));
 #endif
     }
 
@@ -285,6 +285,60 @@ private slots:
         QCOMPARE(Path(uR"(\\a)"_s).parentPath(), Path());
         QCOMPARE(Path(uR"(a\b)"_s).parentPath(), Path());
 #endif
+    }
+
+    // Path &operator/=(const Path &other);
+    void testOperatorPathAppendAssign() const
+    {
+        QCOMPARE((Path() /= Path()), Path());
+        QCOMPARE((Path(u"a"_s) /= Path()), Path(u"a"_s));
+        QCOMPARE((Path() /= Path(u"b"_s)), Path(u"b"_s));
+        QCOMPARE((Path(u"a"_s) /= Path(u"b"_s)), Path(u"a/b"_s));
+
+#ifdef Q_OS_WIN
+        QCOMPARE((Path(u"c:/"_s) /= Path(u"/"_s)), Path(u"c:/"_s));
+        QCOMPARE((Path(u"c:/"_s) /= Path(u"a/"_s)), Path(u"c:/a"_s));
+#else
+        QCOMPARE((Path(u"/"_s) /= Path(u"/"_s)), Path(u"/"_s));
+        QCOMPARE((Path(u"/"_s) /= Path(u"a/"_s)), Path(u"/a"_s));
+#endif
+    }
+
+    // Path &operator+=(QStringView str);
+    void testOperatorAppendAssign() const
+    {
+        QCOMPARE((Path() += QString()), Path());
+        QCOMPARE((Path(u"a"_s) += QString()), Path(u"a"_s));
+        QCOMPARE((Path() += u"b"), Path(u"b"_s));
+        QCOMPARE((Path(u"a"_s) += u"b"), Path(u"ab"_s));
+        QCOMPARE((Path(u"a"_s) += u"/b/"), Path(u"a/b"_s));
+    }
+
+    // Path operator/(const Path &lhs, const Path &rhs)
+    void testOperatorPathConcat() const
+    {
+        QCOMPARE((Path() / Path()), Path());
+        QCOMPARE((Path(u"a"_s) / Path()), Path(u"a"_s));
+        QCOMPARE((Path() / Path(u"b"_s)), Path(u"b"_s));
+        QCOMPARE((Path(u"a"_s) / Path(u"b"_s)), Path(u"a/b"_s));
+
+#ifdef Q_OS_WIN
+        QCOMPARE((Path(u"c:/"_s) / Path(u"/"_s)), Path(u"c:/"_s));
+        QCOMPARE((Path(u"c:/"_s) / Path(u"a/"_s)), Path(u"c:/a"_s));
+#else
+        QCOMPARE((Path(u"/"_s) / Path(u"/"_s)), Path(u"/"_s));
+        QCOMPARE((Path(u"/"_s) / Path(u"a/"_s)), Path(u"/a"_s));
+#endif
+    }
+
+    // Path operator+(const Path &lhs, QStringView rhs);
+    void testOperatorAppend() const
+    {
+        QCOMPARE((Path() + QString()), Path());
+        QCOMPARE((Path(u"a"_s) + QString()), Path(u"a"_s));
+        QCOMPARE((Path() + u"b"), Path(u"b"_s));
+        QCOMPARE((Path(u"a"_s) + u"b"), Path(u"ab"_s));
+        QCOMPARE((Path(u"a"_s) + u"/b/"), Path(u"a/b"_s));
     }
 
     // TODO: add tests for remaining methods

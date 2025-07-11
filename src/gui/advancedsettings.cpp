@@ -40,7 +40,6 @@
 #include "base/global.h"
 #include "base/preferences.h"
 #include "base/unicodestrings.h"
-#include "gui/addnewtorrentdialog.h"
 #include "gui/desktopintegration.h"
 #include "gui/mainwindow.h"
 #include "interfaces/iguiapplication.h"
@@ -65,7 +64,7 @@ namespace
         QBITTORRENT_HEADER,
         RESUME_DATA_STORAGE,
         TORRENT_CONTENT_REMOVE_OPTION,
-#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_MACOS)
+#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
         MEMORY_WORKING_SET_LIMIT,
 #endif
 #if defined(Q_OS_WIN)
@@ -99,6 +98,7 @@ namespace
         ENABLE_SPEED_WIDGET,
 #ifndef Q_OS_MACOS
         ENABLE_ICONS_IN_MENUS,
+        USE_ATTACHED_ADD_NEW_TORRENT_DIALOG,
 #endif
         // embedded tracker
         TRACKER_STATUS,
@@ -151,6 +151,7 @@ namespace
         UPNP_LEASE_DURATION,
         PEER_TOS,
         UTP_MIX_MODE,
+        HOSTNAME_CACHE_TTL,
         IDN_SUPPORT,
         MULTI_CONNECTIONS_PER_IP,
         VALIDATE_HTTPS_TRACKER_CERTIFICATE,
@@ -163,6 +164,7 @@ namespace
         ANNOUNCE_ALL_TRACKERS,
         ANNOUNCE_ALL_TIERS,
         ANNOUNCE_IP,
+        ANNOUNCE_PORT,
         MAX_CONCURRENT_HTTP_ANNOUNCES,
         STOP_TRACKER_TIMEOUT,
         PEER_TURNOVER,
@@ -207,7 +209,7 @@ void AdvancedSettings::saveAdvancedSettings() const
     BitTorrent::Session *const session = BitTorrent::Session::instance();
 
     session->setResumeDataStorageType(m_comboBoxResumeDataStorage.currentData().value<BitTorrent::ResumeDataStorageType>());
-#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_MACOS)
+#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
     // Physical memory (RAM) usage limit
     app()->setMemoryWorkingSetLimit(m_spinBoxMemoryWorkingSetLimit.value());
 #endif
@@ -277,6 +279,8 @@ void AdvancedSettings::saveAdvancedSettings() const
     session->setPeerToS(m_spinBoxPeerToS.value());
     // uTP-TCP mixed mode
     session->setUtpMixedMode(m_comboBoxUtpMixedMode.currentData().value<BitTorrent::MixedModeAlgorithm>());
+    // Hostname resolver cache TTL
+    session->setHostnameCacheTTL(m_spinBoxHostnameCacheTTL.value());
     // Support internationalized domain name (IDN)
     session->setIDNSupportEnabled(m_checkBoxIDNSupport.isChecked());
     // multiple connections per IP
@@ -309,6 +313,8 @@ void AdvancedSettings::saveAdvancedSettings() const
     // Construct a QHostAddress to filter malformed strings
     const QHostAddress addr(m_lineEditAnnounceIP.text().trimmed());
     session->setAnnounceIP(addr.toString());
+    // Announce Port
+    session->setAnnouncePort(m_spinBoxAnnouncePort.value());
     // Max concurrent HTTP announces
     session->setMaxConcurrentHTTPAnnounces(m_spinBoxMaxConcurrentHTTPAnnounces.value());
     // Stop tracker timeout
@@ -327,6 +333,7 @@ void AdvancedSettings::saveAdvancedSettings() const
     pref->setSpeedWidgetEnabled(m_checkBoxSpeedWidgetEnabled.isChecked());
 #ifndef Q_OS_MACOS
     pref->setIconsInMenusEnabled(m_checkBoxIconsInMenusEnabled.isChecked());
+    pref->setAddNewTorrentDialogAttached(m_checkBoxAttachedAddNewTorrentDialog.isChecked());
 #endif
 
     // Tracker
@@ -487,12 +494,11 @@ void AdvancedSettings::loadAdvancedSettings()
     m_comboBoxTorrentContentRemoveOption.setCurrentIndex(m_comboBoxTorrentContentRemoveOption.findData(QVariant::fromValue(session->torrentContentRemoveOption())));
     addRow(TORRENT_CONTENT_REMOVE_OPTION, tr("Torrent content removing mode"), &m_comboBoxTorrentContentRemoveOption);
 
-#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_MACOS)
+#if defined(QBT_USES_LIBTORRENT2) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
     // Physical memory (RAM) usage limit
     m_spinBoxMemoryWorkingSetLimit.setMinimum(1);
     m_spinBoxMemoryWorkingSetLimit.setMaximum(std::numeric_limits<int>::max());
     m_spinBoxMemoryWorkingSetLimit.setSuffix(tr(" MiB"));
-    m_spinBoxMemoryWorkingSetLimit.setToolTip(tr("This option is less effective on Linux"));
     m_spinBoxMemoryWorkingSetLimit.setValue(app()->memoryWorkingSetLimit());
     addRow(MEMORY_WORKING_SET_LIMIT, (tr("Physical memory (RAM) usage limit") + u' ' + makeLink(u"https://wikipedia.org/wiki/Working_set", u"(?)"))
         , &m_spinBoxMemoryWorkingSetLimit);
@@ -729,6 +735,14 @@ void AdvancedSettings::loadAdvancedSettings()
     addRow(UTP_MIX_MODE, (tr("%1-TCP mixed mode algorithm", "uTP-TCP mixed mode algorithm").arg(C_UTP)
             + u' ' + makeLink(u"https://www.libtorrent.org/reference-Settings.html#mixed_mode_algorithm", u"(?)"))
             , &m_comboBoxUtpMixedMode);
+    // Hostname resolver cache TTL
+    m_spinBoxHostnameCacheTTL.setMinimum(0);
+    m_spinBoxHostnameCacheTTL.setMaximum(std::numeric_limits<int>::max());
+    m_spinBoxHostnameCacheTTL.setValue(session->hostnameCacheTTL());
+    m_spinBoxHostnameCacheTTL.setSuffix(tr(" s", " seconds"));
+    addRow(HOSTNAME_CACHE_TTL, (tr("Internal hostname resolver cache expiry interval")
+            + u' ' + makeLink(u"https://www.libtorrent.org/reference-Settings.html#resolver_cache_timeout", u"(?)"))
+            , &m_spinBoxHostnameCacheTTL);
     // Support internationalized domain name (IDN)
     m_checkBoxIDNSupport.setChecked(session->isIDNSupportEnabled());
     addRow(IDN_SUPPORT, (tr("Support internationalized domain name (IDN)")
@@ -801,6 +815,13 @@ void AdvancedSettings::loadAdvancedSettings()
     addRow(ANNOUNCE_IP, (tr("IP address reported to trackers (requires restart)")
         + u' ' + makeLink(u"https://www.libtorrent.org/reference-Settings.html#announce_ip", u"(?)"))
         , &m_lineEditAnnounceIP);
+    // Announce port
+    m_spinBoxAnnouncePort.setMinimum(0);
+    m_spinBoxAnnouncePort.setMaximum(65535);
+    m_spinBoxAnnouncePort.setValue(session->announcePort());
+    addRow(ANNOUNCE_PORT, (tr("Port reported to trackers (requires restart) [0: listening port]")
+        + u' ' + makeLink(u"https://www.libtorrent.org/reference-Settings.html#announce_port", u"(?)"))
+        , &m_spinBoxAnnouncePort);
     // Max concurrent HTTP announces
     m_spinBoxMaxConcurrentHTTPAnnounces.setMaximum(std::numeric_limits<int>::max());
     m_spinBoxMaxConcurrentHTTPAnnounces.setValue(session->maxConcurrentHTTPAnnounces());
@@ -846,6 +867,9 @@ void AdvancedSettings::loadAdvancedSettings()
     // Enable icons in menus
     m_checkBoxIconsInMenusEnabled.setChecked(pref->iconsInMenusEnabled());
     addRow(ENABLE_ICONS_IN_MENUS, tr("Enable icons in menus"), &m_checkBoxIconsInMenusEnabled);
+
+    m_checkBoxAttachedAddNewTorrentDialog.setChecked(pref->isAddNewTorrentDialogAttached());
+    addRow(USE_ATTACHED_ADD_NEW_TORRENT_DIALOG, tr("Attach \"Add new torrent\" dialog to main window"), &m_checkBoxAttachedAddNewTorrentDialog);
 #endif
     // Tracker State
     m_checkBoxTrackerStatus.setChecked(session->isTrackerEnabled());
