@@ -29,10 +29,12 @@
 
 #pragma once
 
+#include <chrono>
 #include <type_traits>
 #include <utility>
 
 #include <QDateTime>
+#include <QDeadlineTimer>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QHostAddress>
@@ -53,10 +55,13 @@
 #include "base/utils/version.h"
 #include "api/isessionmanager.h"
 
-inline const Utils::Version<3, 2> API_VERSION {2, 11, 10};
+using namespace std::chrono_literals;
+
+inline const Utils::Version<3, 2> API_VERSION {2, 15, 0};
 
 class APIController;
 class AuthController;
+class ClientDataStorage;
 class WebApplication;
 
 namespace BitTorrent
@@ -71,15 +76,18 @@ public:
 
     QString id() const override;
 
-    bool hasExpired(qint64 seconds) const;
+    bool hasExpired(std::chrono::milliseconds duration) const;
     void updateTimestamp();
+    bool shouldRefreshCookie() const;
+    void setCookieRefreshTime(std::chrono::seconds timeout);
 
     void registerAPIController(const QString &scope, APIController *controller);
     APIController *getAPIController(const QString &scope) const;
 
 private:
     const QString m_sid;
-    QElapsedTimer m_timer;  // timestamp
+    QElapsedTimer m_timestamp;
+    QDeadlineTimer m_cookieRefreshTimer;
     QMap<QString, APIController *> m_apiControllers;
 };
 
@@ -108,9 +116,10 @@ private:
     QString clientId() const override;
     WebSession *session() override;
     void sessionStart() override;
+    void sessionStartImpl(const QString &sessionId, bool useCookie);
     void sessionEnd() override;
 
-    void doProcessRequest();
+    void doProcessRequest(bool isUsingApiKey);
     void configure();
 
     void declarePublicAPI(const QString &apiPath);
@@ -123,6 +132,8 @@ private:
     // Session management
     QString generateSid() const;
     void sessionInitialize();
+    void setSessionCookie();
+    void apiKeySessionInitialize();
     bool isAuthNeeded();
     bool isPublicAPI(const QString &scope, const QString &action) const;
 
@@ -149,12 +160,15 @@ private:
     const QHash<std::pair<QString, QString>, QString> m_allowedMethod =
     {
         // <<controller name, action name>, HTTP method>
+        {{u"app"_s, u"deleteAPIKey"_s}, Http::METHOD_POST},
+        {{u"app"_s, u"rotateAPIKey"_s}, Http::METHOD_POST},
         {{u"app"_s, u"sendTestEmail"_s}, Http::METHOD_POST},
         {{u"app"_s, u"setCookies"_s}, Http::METHOD_POST},
         {{u"app"_s, u"setPreferences"_s}, Http::METHOD_POST},
         {{u"app"_s, u"shutdown"_s}, Http::METHOD_POST},
         {{u"auth"_s, u"login"_s}, Http::METHOD_POST},
         {{u"auth"_s, u"logout"_s}, Http::METHOD_POST},
+        {{u"clientdata"_s, u"store"_s}, Http::METHOD_POST},
         {{u"rss"_s, u"addFeed"_s}, Http::METHOD_POST},
         {{u"rss"_s, u"addFolder"_s}, Http::METHOD_POST},
         {{u"rss"_s, u"markAsRead"_s}, Http::METHOD_POST},
@@ -189,8 +203,10 @@ private:
         {{u"torrents"_s, u"editCategory"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"editTracker"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"editWebSeed"_s}, Http::METHOD_POST},
+        {{u"torrents"_s, u"fetchMetadata"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"filePrio"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"increasePrio"_s}, Http::METHOD_POST},
+        {{u"torrents"_s, u"parseMetadata"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"reannounce"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"recheck"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"removeCategories"_s}, Http::METHOD_POST},
@@ -202,6 +218,7 @@ private:
         {{u"torrents"_s, u"renameFolder"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"setAutoManagement"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"setCategory"_s}, Http::METHOD_POST},
+        {{u"torrents"_s, u"setComment"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"setDownloadLimit"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"setDownloadPath"_s}, Http::METHOD_POST},
         {{u"torrents"_s, u"setForceStart"_s}, Http::METHOD_POST},
@@ -240,8 +257,9 @@ private:
     bool m_isLocalAuthEnabled = false;
     bool m_isAuthSubnetWhitelistEnabled = false;
     QList<Utils::Net::Subnet> m_authSubnetWhitelist;
-    int m_sessionTimeout = 0;
+    std::chrono::seconds m_sessionTimeout = 0s;
     QString m_sessionCookieName;
+    QString m_apiKey;
 
     // security related
     QStringList m_domainList;
@@ -258,4 +276,5 @@ private:
     QList<Http::Header> m_prebuiltHeaders;
 
     BitTorrent::TorrentCreationManager *m_torrentCreationManager = nullptr;
+    ClientDataStorage *m_clientDataStorage = nullptr;
 };

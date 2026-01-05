@@ -60,6 +60,7 @@
 #include "base/rss/rss_session.h"
 #include "base/torrentfileguard.h"
 #include "base/torrentfileswatcher.h"
+#include "base/utils/apikey.h"
 #include "base/utils/datetime.h"
 #include "base/utils/fs.h"
 #include "base/utils/misc.h"
@@ -173,7 +174,6 @@ void AppController::preferencesAction()
     data[u"torrent_changed_tmm_enabled"_s] = !session->isDisableAutoTMMWhenCategoryChanged();
     data[u"save_path_changed_tmm_enabled"_s] = !session->isDisableAutoTMMWhenDefaultSavePathChanged();
     data[u"category_changed_tmm_enabled"_s] = !session->isDisableAutoTMMWhenCategorySavePathChanged();
-    data[u"use_subcategories"] = session->isSubcategoriesEnabled();
     data[u"save_path"_s] = session->savePath().toString();
     data[u"temp_path_enabled"_s] = session->isDownloadPathEnabled();
     data[u"temp_path"_s] = session->downloadPath().toString();
@@ -338,6 +338,8 @@ void AppController::preferencesAction()
     data[u"web_ui_max_auth_fail_count"_s] = pref->getWebUIMaxAuthFailCount();
     data[u"web_ui_ban_duration"_s] = static_cast<int>(pref->getWebUIBanDuration().count());
     data[u"web_ui_session_timeout"_s] = pref->getWebUISessionTimeout();
+    // API key
+    data[u"web_ui_api_key"_s] = pref->getWebUIApiKey();
     // Use alternative WebUI
     data[u"alternative_webui_enabled"_s] = pref->isAltWebUIEnabled();
     data[u"alternative_webui_path"_s] = pref->getWebUIRootFolder().toString();
@@ -459,7 +461,7 @@ void AppController::preferencesAction()
     // UPnP lease duration
     data[u"upnp_lease_duration"_s] = session->UPnPLeaseDuration();
     // Type of service
-    data[u"peer_tos"_s] = session->peerToS();
+    data[u"peer_tos"_s] = session->peerDSCP();
     // uTP-TCP mixed mode
     data[u"utp_tcp_mixed_mode"_s] = static_cast<int>(session->utpMixedMode());
     // Hostname resolver cache TTL
@@ -590,8 +592,6 @@ void AppController::setPreferencesAction()
         session->setDisableAutoTMMWhenDefaultSavePathChanged(!it.value().toBool());
     if (hasKey(u"category_changed_tmm_enabled"_s))
         session->setDisableAutoTMMWhenCategorySavePathChanged(!it.value().toBool());
-    if (hasKey(u"use_subcategories"_s))
-        session->setSubcategoriesEnabled(it.value().toBool());
     if (hasKey(u"save_path"_s))
         session->setSavePath(Path(it.value().toString()));
     if (hasKey(u"temp_path_enabled"_s))
@@ -980,7 +980,7 @@ void AppController::setPreferencesAction()
         const QString ifaceValue {it.value().toString()};
 
         const QList<QNetworkInterface> ifaces = QNetworkInterface::allInterfaces();
-        const auto ifacesIter = std::find_if(ifaces.cbegin(), ifaces.cend(), [&ifaceValue](const QNetworkInterface &iface)
+        const auto ifacesIter = std::ranges::find_if(ifaces, [&ifaceValue](const QNetworkInterface &iface)
         {
             return (!iface.addressEntries().isEmpty()) && (iface.name() == ifaceValue);
         });
@@ -1114,7 +1114,7 @@ void AppController::setPreferencesAction()
         session->setUPnPLeaseDuration(it.value().toInt());
     // Type of service
     if (hasKey(u"peer_tos"_s))
-        session->setPeerToS(it.value().toInt());
+        session->setPeerDSCP(it.value().toInt());
     // uTP-TCP mixed mode
     if (hasKey(u"utp_tcp_mixed_mode"_s))
         session->setUtpMixedMode(static_cast<BitTorrent::MixedModeAlgorithm>(it.value().toInt()));
@@ -1227,7 +1227,7 @@ void AppController::getDirectoryContentAction()
             const QFileInfo fileInfo = it.nextFileInfo();
             QJsonObject fileObject
             {
-                {KEY_FILE_METADATA_NAME, fileInfo.fileName()},
+                {KEY_FILE_METADATA_NAME, Path(fileInfo.fileName()).toString()},
                 {KEY_FILE_METADATA_CREATION_DATE, Utils::DateTime::toSecsSinceEpoch(fileInfo.birthTime())},
                 {KEY_FILE_METADATA_LAST_ACCESS_DATE, Utils::DateTime::toSecsSinceEpoch(fileInfo.lastRead())},
                 {KEY_FILE_METADATA_LAST_MODIFICATION_DATE, Utils::DateTime::toSecsSinceEpoch(fileInfo.lastModified())},
@@ -1247,7 +1247,7 @@ void AppController::getDirectoryContentAction()
         }
         else
         {
-            ret.append(it.next());
+            ret.append(Path(it.next()).toString());
         }
     }
     setResult(ret);
@@ -1310,6 +1310,24 @@ void AppController::setCookiesAction()
     Net::DownloadManager::instance()->setAllCookies(cookies);
 
     setResult(QString());
+}
+
+void AppController::rotateAPIKeyAction()
+{
+    const QString key = Utils::APIKey::generate();
+
+    auto *preferences = Preferences::instance();
+    preferences->setWebUIApiKey(key);
+    preferences->apply();
+
+    setResult(QJsonObject {{u"apiKey"_s, key}});
+}
+
+void AppController::deleteAPIKeyAction()
+{
+    auto *preferences = Preferences::instance();
+    preferences->setWebUIApiKey({});
+    preferences->apply();
 }
 
 void AppController::networkInterfaceListAction()

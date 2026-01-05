@@ -34,6 +34,8 @@
 #include "base/bittorrent/torrentdescriptor.h"
 #include "apicontroller.h"
 
+class QByteArray;
+
 namespace BitTorrent
 {
     class InfoHash;
@@ -71,6 +73,7 @@ private slots:
     void recheckAction();
     void reannounceAction();
     void renameAction();
+    void setCommentAction();
     void setCategoryAction();
     void createCategoryAction();
     void editCategoryAction();
@@ -118,6 +121,9 @@ private slots:
 private:
     void onDownloadFinished(const Net::DownloadResult &result);
     void onMetadataDownloaded(const BitTorrent::TorrentInfo &info);
+    void onSearchPluginTorrentDownloaded(const QString &source, const QString &data);
+    void cacheTorrentFile(const QString &source, const QByteArray &data);
+    void cacheMagnetURI(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr);
 
     QHash<QString, BitTorrent::InfoHash> m_torrentSourceCache;
     QHash<BitTorrent::TorrentID, BitTorrent::TorrentDescriptor> m_torrentMetadataCache;

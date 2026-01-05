@@ -236,10 +236,11 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
     LoadTorrentParams torrentParams;
     torrentParams.category = fromLTString(resumeDataRoot.dict_find_string_value("qBt-category"));
     torrentParams.name = fromLTString(resumeDataRoot.dict_find_string_value("qBt-name"));
+    torrentParams.comment = fromLTString(resumeDataRoot.dict_find_string_value("qBt-comment"));
     torrentParams.hasFinishedStatus = resumeDataRoot.dict_find_int_value("qBt-seedStatus");
     torrentParams.firstLastPiecePriority = resumeDataRoot.dict_find_int_value("qBt-firstLastPiecePriority");
-    torrentParams.seedingTimeLimit = resumeDataRoot.dict_find_int_value("qBt-seedingTimeLimit", Torrent::USE_GLOBAL_SEEDING_TIME);
-    torrentParams.inactiveSeedingTimeLimit = resumeDataRoot.dict_find_int_value("qBt-inactiveSeedingTimeLimit", Torrent::USE_GLOBAL_INACTIVE_SEEDING_TIME);
+    torrentParams.seedingTimeLimit = resumeDataRoot.dict_find_int_value("qBt-seedingTimeLimit", DEFAULT_SEEDING_TIME_LIMIT);
+    torrentParams.inactiveSeedingTimeLimit = resumeDataRoot.dict_find_int_value("qBt-inactiveSeedingTimeLimit", DEFAULT_SEEDING_TIME_LIMIT);
     torrentParams.shareLimitAction = Utils::String::toEnum(
             fromLTString(resumeDataRoot.dict_find_string_value("qBt-shareLimitAction")), ShareLimitAction::Default);
 
@@ -282,7 +283,7 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
 
     const lt::string_view ratioLimitString = resumeDataRoot.dict_find_string_value("qBt-ratioLimit");
     if (ratioLimitString.empty())
-        torrentParams.ratioLimit = resumeDataRoot.dict_find_int_value("qBt-ratioLimit", Torrent::USE_GLOBAL_RATIO * 1000) / 1000.0;
+        torrentParams.ratioLimit = resumeDataRoot.dict_find_int_value("qBt-ratioLimit", DEFAULT_RATIO_LIMIT * 1000) / 1000.0;
     else
         torrentParams.ratioLimit = fromLTString(ratioLimitString).toDouble();
 
@@ -437,6 +438,7 @@ void BitTorrent::BencodeResumeDataStorage::Worker::store(const TorrentID &id, co
     data["qBt-category"] = resumeData.category.toStdString();
     data["qBt-tags"] = setToEntryList(resumeData.tags);
     data["qBt-name"] = resumeData.name.toStdString();
+    data["qBt-comment"] = resumeData.comment.toStdString();
     data["qBt-seedStatus"] = resumeData.hasFinishedStatus;
     data["qBt-contentLayout"] = Utils::String::fromEnum(resumeData.contentLayout).toStdString();
     data["qBt-firstLastPiecePriority"] = resumeData.firstLastPiecePriority;
