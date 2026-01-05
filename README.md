@@ -63,6 +63,14 @@ cmake --build build -- -j 16
 ```
 ### Build Without GUI (aka qbittorrent-nox)
 ```
+sudo apt install -y libssl-dev zlib1g-dev
+sudo apt install -y build-essential ninja-build cmake
+git clone --depth=1 --recurse-submodules https://github.com/arvidn/libtorrent.git
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -G Ninja ..
+sudo ninja install
+
+
+git clone --depth=1 https://github.com/1260zqs/qBittorrent.git
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DGUI=OFF
 cmake --build build -- -j 16
 ```
