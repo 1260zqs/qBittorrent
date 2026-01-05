@@ -70,6 +70,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -G Ninja ..
 sudo ninja install
 
 
+export Qt6_DIR=/home/wsl/Qt/6.10.1/gcc_64/lib/cmake/Qt6
 git clone --depth=1 https://github.com/1260zqs/qBittorrent.git
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DGUI=OFF
 cmake --build build -- -j 16
