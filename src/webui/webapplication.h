@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2014-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2014-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2024  Radu Carpa <radu.carpa@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,6 @@
 #pragma once
 
 #include <chrono>
-#include <type_traits>
 #include <utility>
 
 #include <QDateTime>
@@ -46,18 +45,20 @@
 #include <QTranslator>
 
 #include "base/applicationcomponent.h"
-#include "base/global.h"
+#include "base/http/constants.h"
+#include "base/http/environment.h"
 #include "base/http/irequesthandler.h"
-#include "base/http/responsebuilder.h"
-#include "base/http/types.h"
+#include "base/http/request.h"
+#include "base/http/response.h"
 #include "base/path.h"
 #include "base/utils/net.h"
 #include "base/utils/version.h"
 #include "api/isessionmanager.h"
 
 using namespace std::chrono_literals;
+using namespace Qt::Literals::StringLiterals;
 
-inline const Utils::Version<3, 2> API_VERSION {2, 15, 0};
+inline const Utils::Version<3, 2> API_VERSION {2, 15, 2};
 
 class APIController;
 class AuthController;
@@ -93,7 +94,6 @@ private:
 
 class WebApplication final : public ApplicationComponent<QObject>
         , public Http::IRequestHandler, public ISessionManager
-        , private Http::ResponseBuilder
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(WebApplication)
@@ -113,7 +113,7 @@ public:
     quint16 m_privatePort = 0;
     bool m_isPrivateEnabled = false;
 private:
-    QString clientId() const override;
+    QString clientId() const;
     WebSession *session() override;
     void sessionStart() override;
     void sessionStartImpl(const QString &sessionId, bool useCookie);
@@ -141,6 +141,12 @@ private:
     bool isCrossSiteRequest(const Http::Request &request) const;
     bool validateHostHeader(const QStringList &domains) const;
 
+    bool validateCredentials(QStringView username, QStringView password) const override;
+    bool validateBasicAuth(QStringView credentials) const;
+    bool isBanned() const;
+    int failedAttemptsCount() const;
+    void increaseFailedAttempts() const;
+
     // reverse proxy
     QHostAddress resolveClientAddress() const;
 
@@ -152,6 +158,7 @@ private:
     Http::Request m_request;
     Http::Environment m_env;
     QHash<QString, QString> m_params;
+    Http::Response m_response;
     const QString m_cacheID;
 
     const QRegularExpression m_apiPathPattern {u"^/api/v2/(?<scope>[A-Za-z_][A-Za-z_0-9]*)/(?<action>[A-Za-z_][A-Za-z_0-9]*)$"_s};
@@ -260,6 +267,8 @@ private:
     std::chrono::seconds m_sessionTimeout = 0s;
     QString m_sessionCookieName;
     QString m_apiKey;
+    QString m_username;
+    QByteArray m_passwordHash;
 
     // security related
     QStringList m_domainList;
@@ -273,8 +282,15 @@ private:
     QList<Utils::Net::Subnet> m_trustedReverseProxyList;
     QHostAddress m_clientAddress;
 
-    QList<Http::Header> m_prebuiltHeaders;
+    Http::HeaderMap m_prebuiltHeaders;
 
     BitTorrent::TorrentCreationManager *m_torrentCreationManager = nullptr;
     ClientDataStorage *m_clientDataStorage = nullptr;
+
+    struct FailedLogin
+    {
+        int failedAttemptsCount = 0;
+        QDeadlineTimer banTimer {-1};
+    };
+    mutable QHash<QString, FailedLogin> m_clientFailedLogins;
 };

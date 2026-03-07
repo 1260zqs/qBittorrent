@@ -121,6 +121,15 @@ void AppController::buildInfoAction()
     setResult(versions);
 }
 
+void AppController::processInfoAction()
+{
+    const QJsonObject info =
+    {
+        {u"launch_time"_s, app()->launchTimeSecsSinceEpoch()}
+    };
+    setResult(info);
+}
+
 void AppController::shutdownAction()
 {
     // Special handling for shutdown, we
@@ -398,6 +407,8 @@ void AppController::preferencesAction()
     data[u"app_instance_name"_s] = app()->instanceName();
     // Refresh interval
     data[u"refresh_interval"_s] = session->refreshInterval();
+    // Resolve peer host names
+    data[u"resolve_peer_host_names"_s] = pref->resolvePeerHostNames();
     // Resolve peer countries
     data[u"resolve_peer_countries"_s] = pref->resolvePeerCountries();
     // Reannounce to all trackers when ip/port changed
@@ -894,9 +905,21 @@ void AppController::setPreferencesAction()
         pref->setWebUIHttpsKeyPath(Path(it.value().toString()));
     // Authentication
     if (hasKey(u"web_ui_username"_s))
-        pref->setWebUIUsername(it.value().toString());
+    {
+        const QString username = it.value().toString();
+        if (username.length() < 3)
+            throw APIError(APIErrorType::BadParams, tr("WebUI username must be at least 3 characters long"));
+        if (username.contains(u":"))
+            throw APIError(APIErrorType::BadParams, tr("WebUI username cannot contain a colon"));
+        pref->setWebUIUsername(username);
+    }
     if (hasKey(u"web_ui_password"_s))
+    {
+        const QString password = it.value().toString();
+        if (password.length() < 6)
+            throw APIError(APIErrorType::BadParams, tr("WebUI password must be at least 6 characters long"));
         pref->setWebUIPassword(Utils::Password::PBKDF2::generate(it.value().toByteArray()));
+    }
     if (hasKey(u"bypass_local_auth"_s))
         pref->setWebUILocalAuthEnabled(!it.value().toBool());
     if (hasKey(u"bypass_auth_subnet_whitelist_enabled"_s))
@@ -1017,6 +1040,9 @@ void AppController::setPreferencesAction()
     // Refresh interval
     if (hasKey(u"refresh_interval"_s))
         session->setRefreshInterval(it.value().toInt());
+    // Resolve peer host names
+    if (hasKey(u"resolve_peer_host_names"_s))
+        pref->resolvePeerHostNames(it.value().toBool());
     // Resolve peer countries
     if (hasKey(u"resolve_peer_countries"_s))
         pref->resolvePeerCountries(it.value().toBool());
@@ -1251,6 +1277,23 @@ void AppController::getDirectoryContentAction()
         }
     }
     setResult(ret);
+}
+
+void AppController::getFreeSpaceAtPathAction()
+{
+	requireParams({u"path"_s});
+	Path current {params().value(u"path"_s)};
+	const Path root = current.rootItem();
+    qint64 freeSpace = Utils::Fs::freeDiskSpaceOnPath(current);
+
+    // for non-existent directories (which will be created on demand) `Utils::Fs::freeDiskSpaceOnPath`
+    // will return invalid value so instead query its parent/ancestor paths
+    while ((freeSpace < 0) && (current != root))
+    {
+        current = current.parentPath();
+        freeSpace = Utils::Fs::freeDiskSpaceOnPath(current);
+    }
+    setResult(QString::number(freeSpace));
 }
 
 void AppController::cookiesAction()

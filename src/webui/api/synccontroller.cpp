@@ -45,6 +45,7 @@
 #include "base/bittorrent/trackerentrystatus.h"
 #include "base/global.h"
 #include "base/net/geoipmanager.h"
+#include "base/net/reverseresolution.h"
 #include "base/preferences.h"
 #include "base/utils/string.h"
 #include "apierror.h"
@@ -70,6 +71,7 @@ namespace
     const QString KEY_PEER_FILES = u"files"_s;
     const QString KEY_PEER_FLAGS = u"flags"_s;
     const QString KEY_PEER_FLAGS_DESCRIPTION = u"flags_desc"_s;
+    const QString KEY_PEER_HOST_NAME = u"host_name"_s;
     const QString KEY_PEER_IP = u"ip"_s;
     const QString KEY_PEER_I2P_DEST = u"i2p_dest"_s;
     const QString KEY_PEER_PORT = u"port"_s;
@@ -439,11 +441,6 @@ namespace
         serializedTorrent[KEY_TORRENT_HAS_TRACKER_ERROR] = hasTrackerError;
         serializedTorrent[KEY_TORRENT_HAS_OTHER_ANNOUNCE_ERROR] = hasOtherAnnounceError;
     }
-}
-
-SyncController::SyncController(IApplication *app, QObject *parent)
-    : APIController(app, parent)
-{
 }
 
 void SyncController::updateFreeDiskSpace(const qint64 freeDiskSpace)
@@ -839,14 +836,19 @@ void SyncController::torrentPeersAction()
 
     const QList<BitTorrent::PeerInfo> peersList = torrent->fetchPeerInfo().takeResult();
 
-    bool resolvePeerCountries = Preferences::instance()->resolvePeerCountries();
+    const auto *pref = Preferences::instance();
+    const bool resolvePeerHostNames = pref->resolvePeerHostNames();
+    const bool resolvePeerCountries = pref->resolvePeerCountries();
 
     data[KEY_SYNC_TORRENT_PEERS_SHOW_FLAGS] = resolvePeerCountries;
 
     for (const BitTorrent::PeerInfo &pi : peersList)
     {
+        const BitTorrent::PeerAddress address = pi.address();
         const bool useI2PSocket = pi.useI2PSocket();
-        if (pi.address().ip.isNull() && !useI2PSocket) continue;
+
+        if (address.ip.isNull() && !useI2PSocket)
+            continue;
 
         QVariantMap peer =
         {
@@ -873,22 +875,34 @@ void SyncController::torrentPeersAction()
             peer.insert(KEY_PEER_FILES, filesForPiece.join(u'\n'));
         }
 
-        if (resolvePeerCountries && !useI2PSocket)
-        {
-            peer[KEY_PEER_COUNTRY_CODE] = pi.country().toLower();
-            peer[KEY_PEER_COUNTRY] = Net::GeoIPManager::CountryName(pi.country());
-        }
-
         if (useI2PSocket)
         {
-            peer[KEY_PEER_I2P_DEST] = pi.I2PAddress();
-            peers[pi.I2PAddress()] = peer;
+            const QString i2pAddress = pi.I2PAddress();
+            peer[KEY_PEER_I2P_DEST] = i2pAddress;
+            peers[i2pAddress] = peer;
         }
         else
         {
-            peer[KEY_PEER_IP] = pi.address().ip.toString();
-            peer[KEY_PEER_PORT] = pi.address().port;
-            peers[pi.address().toString()] = peer;
+            peer[KEY_PEER_IP] = address.ip.toString();
+            peer[KEY_PEER_PORT] = address.port;
+
+            peer[KEY_PEER_HOST_NAME] = resolvePeerHostNames
+                ? Net::ReverseResolution::instance()->resolve(address.ip)
+                : QString();
+
+            if (resolvePeerCountries)
+            {
+                const QString country = pi.country();
+                peer[KEY_PEER_COUNTRY_CODE] = country.toLower();
+                peer[KEY_PEER_COUNTRY] = Net::GeoIPManager::CountryName(country);
+            }
+            else
+            {
+                peer[KEY_PEER_COUNTRY_CODE] = {};
+                peer[KEY_PEER_COUNTRY] = {};
+            }
+
+            peers[address.toString()] = peer;
         }
     }
     data[u"peers"_s] = peers;

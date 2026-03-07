@@ -118,6 +118,7 @@ using namespace std::chrono_literals;
 using namespace BitTorrent;
 
 const Path CATEGORIES_FILE_NAME {u"categories.json"_s};
+const Path ADDITIONAL_TRACKERS_FROM_URL_FILE_NAME {u"additional_trackers_from_url.txt"_s};
 const int MAX_PROCESSING_RESUMEDATA_COUNT = 50;
 const std::chrono::seconds FREEDISKSPACE_CHECK_TIMEOUT = 30s;
 
@@ -682,8 +683,10 @@ SessionImpl::SessionImpl(QObject *parent)
     m_updateTrackersFromURLTimer = new QTimer(this);
     m_updateTrackersFromURLTimer->setInterval(24h);
     connect(m_updateTrackersFromURLTimer, &QTimer::timeout, this, &SessionImpl::updateTrackersFromURL);
+
     if (isAddTrackersFromURLEnabled())
     {
+        updateTrackersFromFile();
         updateTrackersFromURL();
         m_updateTrackersFromURLTimer->start();
     }
@@ -1072,7 +1075,7 @@ bool SessionImpl::setCategoryOptions(const QString &categoryName, const Category
 
     CategoryOptions &currentOptions = it.value();
     if (options == currentOptions)
-        return false;
+        return true;
 
     if (isDisableAutoTMMWhenCategorySavePathChanged()
             && ((options.savePath != currentOptions.savePath) || (options.downloadPath != currentOptions.downloadPath)))
@@ -1795,10 +1798,18 @@ void SessionImpl::processBannedIPs(lt::ip_filter &filter)
     for (const QString &ip : asConst(m_bannedIPs.get()))
     {
         lt::error_code ec;
-        const lt::address addr = lt::make_address(ip.toLatin1().constData(), ec);
+        const std::optional<Utils::Net::IPRange> ipRange = Utils::Net::parseIPRange(ip);
+        if (!ipRange)
+            continue;
+        const lt::address firstAddr = lt::make_address(ipRange.value().first.toString().toLatin1().constData(), ec);
         Q_ASSERT(!ec);
-        if (!ec)
-            filter.add_rule(addr, addr, lt::ip_filter::blocked);
+        if (ec) [[unlikely]]
+            continue;
+        const lt::address lastAddr = lt::make_address(ipRange.value().second.toString().toLatin1().constData(), ec);
+        Q_ASSERT(!ec);
+        if (ec) [[unlikely]]
+            continue;
+        filter.add_rule(firstAddr, lastAddr, lt::ip_filter::blocked);
     }
 }
 
@@ -3998,6 +4009,8 @@ void SessionImpl::setAddTrackersFromURLEnabled(const bool enabled)
         {
             m_updateTrackersFromURLTimer->stop();
             setAdditionalTrackersFromURL({});
+            const Path path = specialFolderLocation(SpecialFolder::Data) / Path(ADDITIONAL_TRACKERS_FROM_URL_FILE_NAME);
+            Utils::Fs::removeFile(path);
         }
     }
 }
@@ -4040,7 +4053,8 @@ void SessionImpl::updateTrackersFromURL()
     }
     else
     {
-        Net::DownloadManager::instance()->download(Net::DownloadRequest(url)
+        const Path path = specialFolderLocation(SpecialFolder::Data) / ADDITIONAL_TRACKERS_FROM_URL_FILE_NAME;
+        Net::DownloadManager::instance()->download(Net::DownloadRequest(url).saveToFile(true).destFileName(path)
                 , Preferences::instance()->useProxyForGeneralPurposes(), this, [this](const Net::DownloadResult &result)
         {
             if (result.status == Net::DownloadStatus::Success)
@@ -4169,19 +4183,20 @@ void SessionImpl::setBannedIPs(const QStringList &newList)
         return; // do nothing
     // here filter out incorrect IP
     QStringList filteredList;
-    for (const QString &ip : newList)
+    for (const QString &entry : newList)
     {
-        if (Utils::Net::isValidIP(ip))
+        const std::optional<Utils::Net::IPRange> ipRange = Utils::Net::parseIPRange(entry);
+        if (ipRange)
         {
             // the same IPv6 addresses could be written in different forms;
             // QHostAddress::toString() result format follows RFC5952;
             // thus we avoid duplicate entries pointing to the same address
-            filteredList << QHostAddress(ip).toString();
+            filteredList << Utils::Net::ipRangeToString(ipRange.value());
         }
         else
         {
-            LogMsg(tr("Rejected invalid IP address while applying the list of banned IP addresses. IP: \"%1\"")
-                   .arg(ip)
+            LogMsg(tr("Rejected invalid IP address range while applying the list of banned IP addresses. IP range: \"%1\"")
+                   .arg(entry)
                 , Log::WARNING);
         }
     }
@@ -5726,8 +5741,6 @@ void SessionImpl::fetchPendingAlerts(const lt::time_duration time)
 
 void SessionImpl::endAlertSequence(const int alertType, const qsizetype alertCount)
 {
-    qDebug() << "End alert sequence. Alert:" << lt::alert_name(alertType) << "Count:" << alertCount;
-
     if (alertType == lt::add_torrent_alert::alert_type)
     {
         emit addTorrentAlertsReceived(alertCount);
@@ -6623,4 +6636,24 @@ void SessionImpl::handleRemovedTorrent(const TorrentID &torrentID, const QString
     }
 
     m_removingTorrents.erase(removingTorrentDataIter);
+}
+
+void SessionImpl::updateTrackersFromFile()
+{
+    const qint64 fileMaxSize = 1024 * 1024;
+    const Path path = specialFolderLocation(SpecialFolder::Data) / Path(ADDITIONAL_TRACKERS_FROM_URL_FILE_NAME);
+
+    const auto readResult = Utils::IO::readFile(path, fileMaxSize);
+    if (!readResult)
+    {
+        if (readResult.error().status == Utils::IO::ReadError::NotExist)
+        {
+            return;
+        }
+
+        LogMsg(tr("Failed to load additional trackers from file. Reason: %1").arg(readResult.error().message), Log::WARNING);
+        return;
+    }
+
+    setAdditionalTrackersFromURL(QString::fromUtf8(readResult.value()));
 }

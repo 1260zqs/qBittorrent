@@ -1,20 +1,45 @@
 <div id="BehaviorTab" class="PrefTab">
     <fieldset class="settings">
-        <legend>QBT_TR(Language)QBT_TR[CONTEXT=OptionsDialog]</legend>
-        <label for="locale_select">QBT_TR(User interface language:)QBT_TR[CONTEXT=OptionsDialog]</label>
-        <select id="locale_select">
-            ${LANGUAGE_OPTIONS}
-        </select>
+        <legend>QBT_TR(Localization)QBT_TR[CONTEXT=OptionsDialog]</legend>
+        <table>
+            <tbody>
+                <tr>
+                    <td><label for="locale_select">QBT_TR(User interface language:)QBT_TR[CONTEXT=OptionsDialog]</label></td>
+                    <td>
+                        <select id="locale_select">
+                            ${LANGUAGE_OPTIONS}
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label for="dateFormatSelect">QBT_TR(Date format:)QBT_TR[CONTEXT=OptionsDialog]</label></td>
+                    <td>
+                        <select id="dateFormatSelect">
+                            <option value="default" selected>QBT_TR(Browser default)QBT_TR[CONTEXT=OptionsDialog]</option>
+                        </select>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </fieldset>
 
     <fieldset class="settings">
         <legend>QBT_TR(Interface)QBT_TR[CONTEXT=OptionsDialog]</legend>
-        <label for="colorSchemeSelect">QBT_TR(Color scheme:)QBT_TR[CONTEXT=OptionsDialog]</label>
-        <select id="colorSchemeSelect">
-            <option value="0">QBT_TR(Auto)QBT_TR[CONTEXT=OptionsDialog]</option>
-            <option value="1">QBT_TR(Light)QBT_TR[CONTEXT=OptionsDialog]</option>
-            <option value="2">QBT_TR(Dark)QBT_TR[CONTEXT=OptionsDialog]</option>
-        </select>
+        <div class="formRow" style="margin-bottom: 3px;">
+            <label for="colorSchemeSelect">QBT_TR(Color scheme:)QBT_TR[CONTEXT=OptionsDialog]</label>
+            <select id="colorSchemeSelect">
+                <option value="0">QBT_TR(Auto)QBT_TR[CONTEXT=OptionsDialog]</option>
+                <option value="1">QBT_TR(Light)QBT_TR[CONTEXT=OptionsDialog]</option>
+                <option value="2">QBT_TR(Dark)QBT_TR[CONTEXT=OptionsDialog]</option>
+            </select>
+        </div>
+        <div class="formRow">
+            <label for="displayDensitySelect">QBT_TR(Display density:)QBT_TR[CONTEXT=OptionsDialog]</label>
+            <select id="displayDensitySelect">
+                <option value="default">QBT_TR(Default)QBT_TR[CONTEXT=OptionsDialog]</option>
+                <option value="compact">QBT_TR(Compact)QBT_TR[CONTEXT=OptionsDialog]</option>
+            </select>
+        </div>
     </fieldset>
 
     <fieldset class="settings">
@@ -117,7 +142,7 @@
         </div>
         <div class="formRow" style="margin-bottom: 3px;">
             <input type="checkbox" id="useVirtualList">
-            <label for="useVirtualList">QBT_TR(Enable optimized table rendering (experimental))QBT_TR[CONTEXT=OptionsDialog]</label>
+            <label for="useVirtualList">QBT_TR(Enable optimized table rendering)QBT_TR[CONTEXT=OptionsDialog]</label>
         </div>
     </fieldset>
 </div>
@@ -351,7 +376,7 @@
                             <label for="mail_password_text">QBT_TR(Password:)QBT_TR[CONTEXT=OptionsDialog]</label>
                         </td>
                         <td>
-                            <input type="password" id="mail_password_text">
+                            <input type="password" id="mail_password_text" autocomplete="new-password">
                         </td>
                     </tr>
                 </tbody>
@@ -541,7 +566,7 @@
                             <label for="peer_proxy_password_text">QBT_TR(Password:)QBT_TR[CONTEXT=OptionsDialog]</label>
                         </td>
                         <td>
-                            <input type="password" id="peer_proxy_password_text">
+                            <input type="password" id="peer_proxy_password_text" autocomplete="new-password">
                         </td>
                     </tr>
                 </tbody>
@@ -1159,7 +1184,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         <label for="dyndns_password_text">QBT_TR(Password:)QBT_TR[CONTEXT=OptionsDialog]</label>
                     </td>
                     <td>
-                        <input type="password" id="dyndns_password_text">
+                        <input type="password" id="dyndns_password_text" autocomplete="new-password">
                     </td>
                 </tr>
             </tbody>
@@ -1265,7 +1290,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                         <label for="appInstanceName">QBT_TR(Customize application instance name:)QBT_TR[CONTEXT=OptionsDialog]</label>
                     </td>
                     <td>
-                        <input type="text" id="appInstanceName" style="width: 15em;" title="QBT_TR(It appends the text to the window title to help distinguish qBittorent instances)QBT_TR[CONTEXT=OptionsDialog]">
+                        <input type="text" id="appInstanceName" style="width: 15em;" title="QBT_TR(It appends the text to the window title to help distinguish qBittorrent instances)QBT_TR[CONTEXT=OptionsDialog]">
                     </td>
                 </tr>
                 <tr>
@@ -1274,6 +1299,14 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     </td>
                     <td>
                         <input type="text" id="refreshInterval" style="width: 15em;" title="QBT_TR(It controls the internal state update interval which in turn will affect UI updates)QBT_TR[CONTEXT=OptionsDialog]">&nbsp;&nbsp;QBT_TR(ms)QBT_TR[CONTEXT=OptionsDialog]
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="resolvePeerHostNames">QBT_TR(Resolve peer host names:)QBT_TR[CONTEXT=OptionsDialog]</label>
+                    </td>
+                    <td>
+                        <input type="checkbox" id="resolvePeerHostNames">
                     </td>
                 </tr>
                 <tr>
@@ -2261,9 +2294,11 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             window.parent.qBittorrent.Cache.preferences.init()
                 .then((pref) => {
                     const clientData = window.parent.qBittorrent.ClientData;
+                    const dateFormat = clientData.get("date_format");
                     const colorScheme = clientData.get("color_scheme");
+                    const displayDensity = clientData.get("display_density") ?? "default";
                     const fullUrlTrackerColumn = clientData.get("full_url_tracker_column");
-                    const useVirtualList = clientData.get("use_virtual_list");
+                    const useVirtualList = clientData.get("use_virtual_list") ?? true;
                     const hideZeroStatusFilters = clientData.get("hide_zero_status_filters");
                     const dblclickDownload = clientData.get("dblclick_download") ?? "1";
                     const dblclickComplete = clientData.get("dblclick_complete") ?? "1";
@@ -2271,9 +2306,21 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     const useAltRowColors = clientData.get("use_alt_row_colors");
 
                     // Behavior tab
-                    // Language
+                    // Localization
                     updateWebuiLocaleSelect(pref.locale);
+                    const now = new Date();
+                    const dateFormatSelect = document.getElementById("dateFormatSelect");
+                    for (const format of Object.keys(window.qBittorrent.Misc.DateFormatOptions)) {
+                        const option = document.createElement("option");
+                        option.value = format;
+                        option.textContent = window.qBittorrent.Misc.formatDate(now, format);
+                        option.selected = format === dateFormat;
+                        dateFormatSelect.appendChild(option);
+                    }
+
+                    // Interface
                     updateColoSchemeSelect(colorScheme);
+                    document.getElementById("displayDensitySelect").value = displayDensity;
 
                     document.getElementById("statusBarExternalIP").checked = pref.status_bar_external_ip;
                     document.getElementById("performanceWarning").checked = pref.performance_warning;
@@ -2532,7 +2579,6 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     let maxRatioAct = 0;
                     switch (Number(pref.max_ratio_act)) {
                         case 0: // Stop
-                        default:
                             maxRatioAct = 0;
                             break;
                         case 1: // Remove
@@ -2641,6 +2687,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                     document.getElementById("recheckTorrentsOnCompletion").checked = pref.recheck_completed_torrents;
                     document.getElementById("appInstanceName").value = pref.app_instance_name;
                     document.getElementById("refreshInterval").value = pref.refresh_interval;
+                    document.getElementById("resolvePeerHostNames").checked = pref.resolve_peer_host_names;
                     document.getElementById("resolvePeerCountries").checked = pref.resolve_peer_countries;
                     document.getElementById("reannounceWhenAddressChanged").checked = pref.reannounce_when_address_changed;
                     document.getElementById("enableEmbeddedTracker").checked = pref.enable_embedded_tracker;
@@ -2714,6 +2761,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             // Behavior tab
             // Language
             settings["locale"] = document.getElementById("locale_select").value;
+            clientData.date_format = document.getElementById("dateFormatSelect").getSelected()[0].value;
             const colorScheme = Number(document.getElementById("colorSchemeSelect").value);
             if (colorScheme === 0)
                 clientData.color_scheme = null;
@@ -2721,6 +2769,8 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 clientData.color_scheme = "light";
             else
                 clientData.color_scheme = "dark";
+            const displayDensity = document.getElementById("displayDensitySelect").value;
+            clientData.display_density = (displayDensity === "default") ? null : displayDensity;
             settings["status_bar_external_ip"] = document.getElementById("statusBarExternalIP").checked;
             settings["performance_warning"] = document.getElementById("performanceWarning").checked;
             clientData.full_url_tracker_column = document.getElementById("displayFullURLTrackerColumn").checked;
@@ -3060,6 +3110,10 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 alert("QBT_TR(The WebUI username must be at least 3 characters long.)QBT_TR[CONTEXT=OptionsDialog]");
                 return;
             }
+            if (web_ui_username.includes(":")) {
+                alert("QBT_TR(The WebUI username must not contain a colon.)QBT_TR[CONTEXT=OptionsDialog]");
+                return;
+            }
             const web_ui_password = document.getElementById("webui_password_text").value;
             if ((0 < web_ui_password.length) && (web_ui_password.length < 6)) {
                 alert("QBT_TR(The WebUI password must be at least 6 characters long.)QBT_TR[CONTEXT=OptionsDialog]");
@@ -3121,6 +3175,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
             settings["recheck_completed_torrents"] = document.getElementById("recheckTorrentsOnCompletion").checked;
             settings["app_instance_name"] = document.getElementById("appInstanceName").value;
             settings["refresh_interval"] = Number(document.getElementById("refreshInterval").value);
+            settings["resolve_peer_host_names"] = document.getElementById("resolvePeerHostNames").checked;
             settings["resolve_peer_countries"] = document.getElementById("resolvePeerCountries").checked;
             settings["reannounce_when_address_changed"] = document.getElementById("reannounceWhenAddressChanged").checked;
             settings["enable_embedded_tracker"] = document.getElementById("enableEmbeddedTracker").checked;
@@ -3231,7 +3286,10 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 }
                 else {
                     // keep window open so user can reattempt saving
-                    alert("QBT_TR(Unable to save preferences, qBittorrent is probably unreachable.)QBT_TR[CONTEXT=HttpServer]");
+                    if (error.name === "ServerError")
+                        alert(`QBT_TR(Error:)QBT_TR[CONTEXT=HttpServer] ${error.message}`);
+                    else
+                        alert("QBT_TR(Unable to save preferences, qBittorrent is probably unreachable.)QBT_TR[CONTEXT=HttpServer]");
                 }
             });
         };

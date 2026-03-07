@@ -63,9 +63,11 @@ window.qBittorrent.Client ??= (() => {
         clientDataPromise = window.qBittorrent.ClientData.fetch([
             "add_torrent_default_category",
             "color_scheme",
+            "date_format",
             "dblclick_complete",
             "dblclick_download",
             "dblclick_filter",
+            "display_density",
             "full_url_tracker_column",
             "hide_zero_status_filters",
             "qbt_selected_log_levels",
@@ -299,6 +301,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
 
     await window.qBittorrent.Client.initializeClientData();
     window.qBittorrent.ColorScheme.update();
+    document.documentElement.classList.toggle("compact", clientData.get("display_density") === "compact");
 
     useAutoHideZeroStatusFilters = clientData.get("hide_zero_status_filters") === true;
     displayFullURLTrackerColumn = clientData.get("full_url_tracker_column") === true;
@@ -1033,14 +1036,14 @@ window.addEventListener("DOMContentLoaded", async (event) => {
                             }
                         }
                         if (responseJSON["torrents_removed"]) {
-                            responseJSON["torrents_removed"].each((hash) => {
+                            for (const hash of responseJSON["torrents_removed"]) {
                                 torrentsTable.removeRow(hash);
                                 removeTorrentFromCategoryList(hash);
                                 updateCategories = true; // Always to update All category
                                 removeTorrentFromTagList(hash);
                                 updateTags = true; // Always to update All tag
                                 updateTrackers = true;
-                            });
+                            }
                             updateTorrents = true;
                             updateStatuses = true;
                         }
