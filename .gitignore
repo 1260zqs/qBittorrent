@@ -1,5 +1,7 @@
 .vscode/
+.qt/
 
+src/base/qbt_base_autogen/
 src/gui/geoip/GeoIP.dat
 src/gui/geoip/GeoIP.dat.gz
 src/qbittorrent
@@ -41,3 +43,7 @@ src/icons/skin/build-icons/icons/*.png
 
 # CMake build directory
 build/
+dist/
+CMakeFiles
+cmake_install.cmake
+CMakeCache.txt
