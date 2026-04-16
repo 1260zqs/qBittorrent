@@ -113,6 +113,8 @@ AboutDialog::AboutDialog(QWidget *parent)
 
     if (const QSize dialogSize = m_storeDialogSize; dialogSize.isValid())
         resize(dialogSize);
+    else
+        adjustSize();
 }
 
 AboutDialog::~AboutDialog()

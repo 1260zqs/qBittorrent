@@ -797,6 +797,16 @@ window.qBittorrent.DynamicTable ??= (() => {
             this.setRowClass();
         }
 
+        selectInverse() {
+            const currentSelectedRows = new Set(this.selectedRows);
+
+            const newSelectedRows = this.getFilteredAndSortedRows()
+                .filter(row => !currentSelectedRows.has(row.rowId))
+                .map(row => row.rowId);
+
+            this.reselectRows(newSelectedRows);
+        }
+
         setRowClass() {
             for (const tr of this.getTrs())
                 tr.classList.toggle("selected", this.isRowSelected(tr.rowId));
@@ -3282,8 +3292,8 @@ window.qBittorrent.DynamicTable ??= (() => {
             this.newColumn("name", "", "", -1, true);
 
             this.columns["checked"].updateTd = (td, row) => {
-                let checkbox = row.firstElementChild;
-                if (checkbox === undefined) {
+                let checkbox = td.firstElementChild;
+                if (checkbox === null) {
                     checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.dataset.id = row.rowId;
@@ -3340,8 +3350,8 @@ window.qBittorrent.DynamicTable ??= (() => {
             this.newColumn("name", "", "", -1, true);
 
             this.columns["checked"].updateTd = (td, row) => {
-                let checkbox = row.firstElementChild;
-                if (checkbox === undefined) {
+                let checkbox = td.firstElementChild;
+                if (checkbox === null) {
                     checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.dataset.id = row.rowId;

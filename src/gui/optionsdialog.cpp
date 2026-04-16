@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2024  Jonathan Ketchker
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
@@ -32,7 +32,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdlib>
 #include <limits>
 
 #include <QApplication>
@@ -51,7 +50,6 @@
 #include "base/bittorrent/sharelimits.h"
 #include "base/exceptions.h"
 #include "base/global.h"
-#include "base/net/downloadmanager.h"
 #include "base/net/portforwarder.h"
 #include "base/net/proxyconfigurationmanager.h"
 #include "base/path.h"
@@ -65,11 +63,9 @@
 #include "base/utils/io.h"
 #include "base/utils/misc.h"
 #include "base/utils/net.h"
-#include "base/utils/os.h"
 #include "base/utils/password.h"
 #include "base/utils/random.h"
 #include "base/utils/sslkey.h"
-#include "addnewtorrentdialog.h"
 #include "advancedsettings.h"
 #include "banlistoptionsdialog.h"
 #include "interfaces/iguiapplication.h"
@@ -1059,8 +1055,10 @@ void OptionsDialog::loadSpeedTabOptions()
 
 #ifdef Q_OS_MACOS
     m_ui->checkShowSpeedInDock->setChecked(pref->isSpeedInDockEnabled());
+    m_ui->checkShowMenuBarIcon->setChecked(pref->isMacOSMenuBarIconEnabled());
 #else
     m_ui->checkShowSpeedInDock->hide();
+    m_ui->checkShowMenuBarIcon->hide();
 #endif
 
     connect(m_ui->spinUploadLimit, qSpinBoxValueChanged, this, &ThisType::enableApplyButton);
@@ -1080,6 +1078,7 @@ void OptionsDialog::loadSpeedTabOptions()
 
 #ifdef Q_OS_MACOS
     connect(m_ui->checkShowSpeedInDock, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowMenuBarIcon, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 #endif
 }
 
@@ -1105,6 +1104,7 @@ void OptionsDialog::saveSpeedTabOptions() const
 
 #ifdef Q_OS_MACOS
     pref->setSpeedInDockEnabled(m_ui->checkShowSpeedInDock->isChecked());
+    pref->setMacOSMenuBarIconEnabled(m_ui->checkShowMenuBarIcon->isChecked());
 #endif
 }
 
@@ -1138,13 +1138,13 @@ void OptionsDialog::loadBittorrentTabOptions()
 
     m_ui->spinMaxRatio->setMaximum(std::numeric_limits<int>::max());
 
-    if (session->globalMaxRatio() >= 0.)
+    const BitTorrent::ShareLimits &shareLimits = session->shareLimits();
+    if (shareLimits.ratioLimit >= 0.)
     {
         // Enable
         m_ui->checkMaxRatio->setChecked(true);
         m_ui->spinMaxRatio->setEnabled(true);
-        m_ui->comboRatioLimitAct->setEnabled(true);
-        m_ui->spinMaxRatio->setValue(session->globalMaxRatio());
+        m_ui->spinMaxRatio->setValue(shareLimits.ratioLimit);
     }
     else
     {
@@ -1152,12 +1152,12 @@ void OptionsDialog::loadBittorrentTabOptions()
         m_ui->checkMaxRatio->setChecked(false);
         m_ui->spinMaxRatio->setEnabled(false);
     }
-    if (session->globalMaxSeedingMinutes() >= 0)
+    if (shareLimits.seedingTimeLimit >= 0)
     {
         // Enable
         m_ui->checkMaxSeedingMinutes->setChecked(true);
         m_ui->spinMaxSeedingMinutes->setEnabled(true);
-        m_ui->spinMaxSeedingMinutes->setValue(session->globalMaxSeedingMinutes());
+        m_ui->spinMaxSeedingMinutes->setValue(shareLimits.seedingTimeLimit);
     }
     else
     {
@@ -1165,12 +1165,12 @@ void OptionsDialog::loadBittorrentTabOptions()
         m_ui->checkMaxSeedingMinutes->setChecked(false);
         m_ui->spinMaxSeedingMinutes->setEnabled(false);
     }
-    if (session->globalMaxInactiveSeedingMinutes() >= 0)
+    if (shareLimits.inactiveSeedingTimeLimit >= 0)
     {
         // Enable
         m_ui->checkMaxInactiveSeedingMinutes->setChecked(true);
         m_ui->spinMaxInactiveSeedingMinutes->setEnabled(true);
-        m_ui->spinMaxInactiveSeedingMinutes->setValue(session->globalMaxInactiveSeedingMinutes());
+        m_ui->spinMaxInactiveSeedingMinutes->setValue(shareLimits.inactiveSeedingTimeLimit);
     }
     else
     {
@@ -1178,7 +1178,7 @@ void OptionsDialog::loadBittorrentTabOptions()
         m_ui->checkMaxInactiveSeedingMinutes->setChecked(false);
         m_ui->spinMaxInactiveSeedingMinutes->setEnabled(false);
     }
-    m_ui->comboRatioLimitAct->setEnabled((session->globalMaxSeedingMinutes() >= 0) || (session->globalMaxRatio() >= 0.) || (session->globalMaxInactiveSeedingMinutes() >= 0));
+    m_ui->comboRatioLimitAct->setEnabled((shareLimits.ratioLimit >= 0.) || (shareLimits.seedingTimeLimit >= 0) || (shareLimits.inactiveSeedingTimeLimit >= 0));
 
     const QHash<BitTorrent::ShareLimitAction, int> actIndex =
     {
@@ -1187,7 +1187,12 @@ void OptionsDialog::loadBittorrentTabOptions()
         {BitTorrent::ShareLimitAction::RemoveWithContent, 2},
         {BitTorrent::ShareLimitAction::EnableSuperSeeding, 3}
     };
-    m_ui->comboRatioLimitAct->setCurrentIndex(actIndex.value(session->shareLimitAction()));
+    m_ui->comboRatioLimitAct->setCurrentIndex(actIndex.value(shareLimits.action));
+
+    if (shareLimits.mode == BitTorrent::ShareLimitsMode::MatchAll)
+        m_ui->radioButtonShareLimitsModeAll->setChecked(true);
+    else
+        m_ui->radioButtonShareLimitsModeAny->setChecked(true);
 
     m_ui->checkEnableAddTrackers->setChecked(session->isAddTrackersEnabled());
     m_ui->textTrackers->setPlainText(session->additionalTrackers());
@@ -1217,7 +1222,8 @@ void OptionsDialog::loadBittorrentTabOptions()
     connect(m_ui->checkMaxRatio, &QAbstractButton::toggled, this, &ThisType::toggleComboRatioLimitAct);
     connect(m_ui->checkMaxRatio, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->spinMaxRatio, qOverload<double>(&QDoubleSpinBox::valueChanged),this, &ThisType::enableApplyButton);
-    connect(m_ui->comboRatioLimitAct, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
+    connect(m_ui->radioButtonShareLimitsModeAny, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkMaxSeedingMinutes, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkMaxSeedingMinutes, &QAbstractButton::toggled, m_ui->spinMaxSeedingMinutes, &QWidget::setEnabled);
     connect(m_ui->checkMaxSeedingMinutes, &QAbstractButton::toggled, this, &ThisType::toggleComboRatioLimitAct);
     connect(m_ui->checkMaxSeedingMinutes, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
@@ -1255,9 +1261,6 @@ void OptionsDialog::saveBittorrentTabOptions() const
     session->setUploadRateForSlowTorrents(m_ui->spinUploadRateForSlowTorrents->value());
     session->setSlowTorrentsInactivityTimer(m_ui->spinSlowTorrentsInactivityTimer->value());
 
-    session->setGlobalMaxRatio(getMaxRatio());
-    session->setGlobalMaxSeedingMinutes(getMaxSeedingMinutes());
-    session->setGlobalMaxInactiveSeedingMinutes(getMaxInactiveSeedingMinutes());
     const QList<BitTorrent::ShareLimitAction> actIndex =
     {
         BitTorrent::ShareLimitAction::Stop,
@@ -1265,7 +1268,13 @@ void OptionsDialog::saveBittorrentTabOptions() const
         BitTorrent::ShareLimitAction::RemoveWithContent,
         BitTorrent::ShareLimitAction::EnableSuperSeeding
     };
-    session->setShareLimitAction(actIndex.value(m_ui->comboRatioLimitAct->currentIndex()));
+    session->setShareLimits({
+        .ratioLimit = getMaxRatio(),
+        .seedingTimeLimit = getMaxSeedingMinutes(),
+        .inactiveSeedingTimeLimit = getMaxInactiveSeedingMinutes(),
+        .mode = (m_ui->radioButtonShareLimitsModeAll->isChecked() ? BitTorrent::ShareLimitsMode::MatchAll : BitTorrent::ShareLimitsMode::MatchAny),
+        .action = actIndex.value(m_ui->comboRatioLimitAct->currentIndex())
+    });
 
     session->setAddTrackersEnabled(m_ui->checkEnableAddTrackers->isChecked());
     session->setAdditionalTrackers(m_ui->textTrackers->toPlainText());
