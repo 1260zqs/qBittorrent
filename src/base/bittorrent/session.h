@@ -359,6 +359,8 @@ namespace BitTorrent
         virtual void setSendBufferWatermarkFactor(int value) = 0;
         virtual int connectionSpeed() const = 0;
         virtual void setConnectionSpeed(int value) = 0;
+        virtual bool isSeedingOutgoingConnectionsEnabled() const = 0;
+        virtual void setSeedingOutgoingConnections(bool enabled) = 0;
         virtual int socketSendBufferSize() const = 0;
         virtual void setSocketSendBufferSize(int value) = 0;
         virtual int socketReceiveBufferSize() const = 0;
@@ -514,6 +516,10 @@ namespace BitTorrent
         void torrentsUpdated(const QList<Torrent *> &torrents);
         void torrentTagAdded(Torrent *torrent, const Tag &tag);
         void torrentTagRemoved(Torrent *torrent, const Tag &tag);
+        void torrentContentFileRenamed(Torrent *torrent, int index, const Path &oldFilePath);
+        void torrentContentFolderRenamed(const Path &newFolderPath, const Path &oldFolderPath, const QHash<int, Path> &renamedFiles);
+        void torrentContentFolderRenamingFailed(const Path &newFolderPath, const Path &oldFolderPath
+                , const QHash<int, Path> &renamedFiles, const QList<int> &failedFileIndexes);
         void trackerError(Torrent *torrent, const QString &tracker);
         void trackersAdded(Torrent *torrent, const QList<TrackerEntry> &trackers);
         void trackersReset(Torrent *torrent, const QList<TrackerEntryStatus> &oldEntries, const QList<TrackerEntry> &newEntries);

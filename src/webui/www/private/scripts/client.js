@@ -203,8 +203,13 @@ window.qBittorrent.Client ??= (() => {
                 saveWindowSize(staticId, id);
             }),
             onContentLoaded: () => {
-                if (metadata !== undefined)
-                    document.getElementById(`${id}_iframe`).contentWindow.postMessage(metadata, window.origin);
+                if (metadata !== undefined) {
+                    const type = "addtorrent_metadata";
+                    document.getElementById(`${id}_iframe`).contentWindow.postMessage({
+                        type,
+                        metadata,
+                    }, window.origin);
+                }
             }
         });
     };
@@ -1251,8 +1256,8 @@ window.addEventListener("DOMContentLoaded", async (event) => {
             });
     });
 
-    document.getElementById("DlInfos").addEventListener("click", (event) => { globalDownloadLimitFN(); });
-    document.getElementById("UpInfos").addEventListener("click", (event) => { globalUploadLimitFN(); });
+    document.getElementById("DlInfos").addEventListener("click", (event) => { globalLimitFN(); });
+    document.getElementById("UpInfos").addEventListener("click", (event) => { globalLimitFN(); });
 
     document.getElementById("showTopToolbarLink").addEventListener("click", (e) => {
         showTopToolbar = !showTopToolbar;
@@ -1708,7 +1713,9 @@ window.addEventListener("DOMContentLoaded", async (event) => {
         tabsURL: "views/propertiesToolbar.html?v=${CACHEID}",
         tabsOnload: () => {}, // must be included, otherwise panel won't load properly
         onContentLoaded: function() {
-            this.panelHeaderCollapseBoxEl.classList.add("invisible");
+            this.panelHeaderCollapseBoxEl.addEvent("click", (event) => {
+                localPreferences.set("properties_panel_collapsed", this.isCollapsed.toString());
+            });
 
             const togglePropertiesPanel = () => {
                 this.collapseToggleEl.click();
